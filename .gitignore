@@ -1,0 +1,74 @@
+# Python cache files
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.whl
+share/python-wheels/
+*.egg-info/
+src/llm_app.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual environments
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Application specific
+data/*
+!data/ref_imgs/
+
+# Logs
+*.log
+logs/
+
+# Temporary files
+*.tmp
+temp/
+tmp/
+
+# Streamlit cache
+.streamlit/
+
+# Secrets
+.env
+.env.local
+.env.production
+secrets/
+
+# Pytest
+.coverage
+.pytest_cache/
+
+# linting and formatting
+.flake8

@@ -1,0 +1,35 @@
+# Video sampling
+frame_stride: 4            # every other frame
+max_frames: null # debug cap
+
+# Model / device
+weights: "retinanet_resnet50_fpn"
+device: "cuda:0"
+conf: 0.5
+
+# SAHI slicing
+use_sahi: true
+slice_width: 650
+slice_height: 650
+overlap_ratio: 0.2
+
+# Airplane class ids (COCO airplane = 5 for Faster R-CNN)
+airplane_class_ids: [5]
+
+# Gap fill
+max_gap: 3                 # fill gaps up to 3 sampled frames
+hard_gap: 10               # fill gaps up to 10 sampled frames
+hard_gap_conf: 0.8         # confidence threshold for hard gap filling
+
+# ROI
+roi: null
+roi_mode: "mask+filter"    # "none" | "mask" | "filter" | "mask+filter"
+roi_center_rule: "center"  # "center" (recommended)
+
+# Outputs
+output_dir: "./data"
+save_csv: true
+save_plot: true
+save_img: true
+hide_conf: false # hide confidence scores in visualizations
+generate_video: true
