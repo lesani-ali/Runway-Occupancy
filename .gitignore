@@ -46,7 +46,7 @@ Thumbs.db
 
 # Application specific
 data/*
-!data/ref_imgs/
+!data/.gitkeep
 
 # Logs
 *.log
