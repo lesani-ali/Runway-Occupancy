@@ -1,11 +1,11 @@
 # Video sampling
-frame_stride: 4            # every other frame
-max_frames: null # debug cap
+frame_stride: 4            # process every Nth frame
+max_frames: null           # debug cap (null = no limit)
 
 # Model / device
-weights: "retinanet_resnet50_fpn"
+weights: "fasterrcnn_resnet50_fpn"
 device: "cuda:0"
-conf: 0.5
+conf: 0.3                  # base detection confidence (pre-filter)
 
 # SAHI slicing
 use_sahi: true
@@ -13,23 +13,42 @@ slice_width: 650
 slice_height: 650
 overlap_ratio: 0.2
 
-# Airplane class ids (COCO airplane = 5 for Faster R-CNN)
+# Airplane class ids (COCO: airplane = 5)
 airplane_class_ids: [5]
 
-# Gap fill
-max_gap: 3                 # fill gaps up to 3 sampled frames
-hard_gap: 10               # fill gaps up to 10 sampled frames
-hard_gap_conf: 0.8         # confidence threshold for hard gap filling
+# ROI  (null = full frame; list of [x,y] points = polygon)
+roi:
+  - [1150, 1250]
+  - [7500, 800]
+  - [7500, 0]
+  - [1000, 0]
+  
+mask_roi: false
 
-# ROI
-roi: null
-roi_mode: "mask+filter"    # "none" | "mask" | "filter" | "mask+filter"
-roi_center_rule: "center"  # "center" (recommended)
+# Episode state-machine
+episode_state_machine:
+  # IDLE -> ACTIVE (start trigger)
+  start_conf: 0.5                  # min conf to count as a "strong" detection
+  start_streak_k: 3                # K detections needed out of last N frames
+  start_streak_n: 5                # N-frame sliding window
+
+  # ACTIVE keep-alive
+  keep_conf: 0.4                   # min conf for a detection to maintain episode
+  gate_px: 500                   # max px distance from Kalman prediction (gating)
+  max_pos_uncertainty: 5000.0      # max Kalman P-trace; above this, prediction ignored
+
+  # LOST recovery
+  recover_conf: 0.5                # min conf to recover from LOST → ACTIVE
+  lost_timeout: 20                 # sampled-frames of total miss before episode closes
+
+  # Kalman filter
+  process_var: 50.0                # process noise variance
+  meas_var: 100.0                   # measurement noise variance
 
 # Outputs
 output_dir: "./data"
 save_csv: true
 save_plot: true
 save_img: true
-hide_conf: false # hide confidence scores in visualizations
+hide_conf: false
 generate_video: true
