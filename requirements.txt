@@ -3,8 +3,7 @@ torchvision --index-url https://download.pytorch.org/whl/cu118
 opencv-python
 numpy
 matplotlib
-tqdm
 rich
 pyyaml
 imageio[ffmpeg]
-sahi
+sahi==0.11.36
