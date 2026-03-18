@@ -6,15 +6,27 @@ from enum import Enum
 from typing import Dict, List, Optional, Any
 
 import numpy as np
-from rich.progress import Progress, BarColumn, TextColumn, TimeRemainingColumn, MofNCompleteColumn
-
-from geometry import (
-    Detection, Polygon,
-    filter_by_roi, passes_gating, point_in_poly,
-    select_best_near_prediction, select_highest_conf,
+from rich.progress import (
+    Progress,
+    BarColumn,
+    TextColumn,
+    TimeRemainingColumn,
+    MofNCompleteColumn,
 )
-from tracker import SingleObjectTracker
-from utils import console
+
+from air_track.tracking.geometry import (
+    Detection,
+    Polygon,
+    filter_by_roi,
+    passes_gating,
+    point_in_poly,
+    select_best_near_prediction,
+    select_highest_conf,
+)
+from air_track.tracking.tracker import SingleObjectTracker
+from air_track.logging import get_logger, get_console
+
+logger = get_logger(__name__)
 
 
 class State(Enum):
@@ -26,6 +38,7 @@ class State(Enum):
 @dataclass
 class Episode:
     """Timing record for one aircraft-on-runway episode."""
+
     episode_id: int
     start_frame: int
     end_frame: int
@@ -43,12 +56,10 @@ class EpisodeMachine:
         times_sec: np.ndarray,
         roi_poly: Optional[Polygon],
         params,
-        verbose: bool = False,
     ):
         self.times_sec = times_sec
         self.roi_poly = roi_poly
         self.params = params
-        self.verbose = verbose
 
         # Outputs
         self.presence: List[int] = []
@@ -69,13 +80,7 @@ class EpisodeMachine:
         self.presence.append(0)  # default; overwritten below
         candidates = filter_by_roi(raw_dets, self.roi_poly)
 
-        if self.verbose:
-            state_fmt = {
-                State.IDLE: "[bold green]IDLE[/bold green]",
-                State.ACTIVE: "[bold yellow]ACTIVE[/bold yellow]",
-                State.LOST: "[bold red]LOST[/bold red]",
-            }[self.state]
-            console.print(f"State: {state_fmt}, t: {t}, candidates: {len(candidates)}")
+        logger.debug(f"State: {self.state.name}, t: {t}, candidates: {len(candidates)}")
 
         if self.state == State.IDLE:
             self._handle_idle(t, candidates)
@@ -87,7 +92,12 @@ class EpisodeMachine:
     def finalize(self) -> None:
         """Close any episode still open at end of video."""
         if self.state in (State.ACTIVE, State.LOST) and self.episode_start is not None:
-            self.episodes.append(self._make_episode(self.episode_start, self.last_reliable))
+            logger.debug(
+                f"Finalizing episode {self.episode_id}: state={self.state}, start={self.episode_start}, last_reliable={self.last_reliable}",
+            )
+            self.episodes.append(
+                self._make_episode(self.episode_start, self.last_reliable)
+            )
 
     def _handle_idle(self, t: int, candidates: List[Detection]) -> None:
         p = self.params
@@ -97,7 +107,7 @@ class EpisodeMachine:
 
         streak = sum(flag for _, flag in self.start_window)
         if streak < p.start_streak_k:
-            return                                     # presence[t] stays 0
+            return  # presence[t] stays 0
 
         # Streak met → open episode
         ep_start = min(fi for fi, flag in self.start_window if flag)
@@ -106,7 +116,10 @@ class EpisodeMachine:
         self.last_reliable = t
         self.missing_count = 0
         self.tracker = SingleObjectTracker(
-            best, dt=1.0, process_var=p.process_var, meas_var=p.meas_var,
+            best,
+            dt=1.0,
+            process_var=p.process_var,
+            meas_var=p.meas_var,
         )
         self.state = State.ACTIVE
         self.start_window.clear()
@@ -171,7 +184,9 @@ class EpisodeMachine:
         self.presence[t] = 0
 
         if self.missing_count >= p.lost_timeout:
-            self.episodes.append(self._make_episode(self.episode_start, self.last_reliable))
+            self.episodes.append(
+                self._make_episode(self.episode_start, self.last_reliable)
+            )
             self._reset_to_idle()
 
     def _pred_reliable(self, pred_xy) -> bool:
@@ -206,17 +221,16 @@ def run_episode_state_machine(
     times_sec: np.ndarray,
     roi_poly: Optional[Polygon],
     params,
-    verbose: bool = False,
 ) -> Dict[str, Any]:
     """Run the episode machine over all sampled frames."""
-    machine = EpisodeMachine(num_frames, times_sec, roi_poly, params, verbose=verbose)
+    machine = EpisodeMachine(num_frames, times_sec, roi_poly, params)
 
     with Progress(
         TextColumn("[green]{task.description}[/green]"),
         BarColumn(),
         MofNCompleteColumn(),
         TimeRemainingColumn(),
-        console=console,
+        console=get_console(),
     ) as progress:
         task = progress.add_task("Processing frames", total=num_frames)
         for t in range(num_frames):
@@ -226,7 +240,7 @@ def run_episode_state_machine(
     machine.finalize()
 
     return {
-        "presence":       machine.presence,
+        "presence": machine.presence,
         "episode_labels": machine.episode_labels,
-        "episodes":       machine.episodes,
+        "episodes": machine.episodes,
     }

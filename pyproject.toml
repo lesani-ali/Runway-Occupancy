@@ -1,0 +1,44 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "air-track"
+version = "0.1.0"
+requires-python = ">=3.12"
+authors = [
+    {name = "Ali Lesani"}
+]
+readme = "README.md"
+dependencies = [
+    "torch>=2.0",
+    "torchvision>=0.15",
+
+    "opencv-python",
+    "numpy",
+    "sahi==0.11.36",
+
+    "matplotlib",
+    "imageio[ffmpeg]",
+
+    "pyyaml",
+    "pydantic",
+    "click",
+    "rich",
+]
+
+[project.optional-dependencies]
+dev = [
+    "black>=23.0.0",
+    "flake8>=6.0.0",
+]
+
+[project.scripts]
+air-track = "air_track.cli.main:cli"
+mkv2mp4 = "air_track.utils.mkv2mp4:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-dir]
+"" = "src"
