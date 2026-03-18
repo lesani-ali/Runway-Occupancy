@@ -3,10 +3,10 @@ from __future__ import annotations
 from typing import List, Optional, Sequence, Tuple
 import numpy as np
 
-Box      = Tuple[float, float, float, float]
+Box = Tuple[float, float, float, float]
 Detection = Tuple[Box, float]
-Point    = Tuple[float, float]
-Polygon  = Sequence[Point]
+Point = Tuple[float, float]
+Polygon = Sequence[Point]
 
 
 def box_center(box: Box) -> Point:
@@ -41,8 +41,9 @@ def filter_by_roi(
     """Filter detections by ROI polygon using box center."""
     if not roi_poly or len(roi_poly) < 3:
         return dets
-    return [(box, conf) for box, conf in dets
-            if point_in_poly(box_center(box), roi_poly)]
+    return [
+        (box, conf) for box, conf in dets if point_in_poly(box_center(box), roi_poly)
+    ]
 
 
 def passes_gating(box: Box, pred_xy: Point, gate_dist_px: float) -> bool:
@@ -67,7 +68,6 @@ def select_best_near_prediction(
     px, py = pred_xy
     return min(
         cands,
-        key=lambda d: np.hypot(box_center(d[0])[0] - px,
-                               box_center(d[0])[1] - py),
+        key=lambda d: np.hypot(box_center(d[0])[0] - px, box_center(d[0])[1] - py),
         default=None,
     )

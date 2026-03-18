@@ -1,9 +1,6 @@
-"""Pixel-level ROI masking applied to frames before detection."""
-
 import cv2
 import numpy as np
 from typing import List, Tuple, Union
-
 
 ROIType = Union[Tuple[int, int, int, int], List[Tuple[int, int]]]
 
@@ -29,7 +26,8 @@ def apply_roi_mask(frame_bgr: np.ndarray, roi: ROIType) -> np.ndarray:
             mask,
             (max(0, int(x1)), max(0, int(y1))),
             (min(w, int(x2)), min(h, int(y2))),
-            255, -1,
+            255,
+            -1,
         )
     else:
         pts = np.array(roi, dtype=np.int32)

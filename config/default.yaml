@@ -1,54 +1,68 @@
 # Video sampling
-frame_stride: 4            # process every Nth frame
-max_frames: null           # debug cap (null = no limit)
+video:
+  frame_stride: 4            # process every Nth frame
+  max_frames: null           # debug cap (null = no limit)
 
-# Model / device
-weights: "fasterrcnn_resnet50_fpn"
-device: "cuda:0"
-conf: 0.3                  # base detection confidence (pre-filter)
+# Model
+model:
+  weights: "fasterrcnn_resnet50_fpn"
+  device: "cuda:0"
+  conf: 0.3                  # base detection confidence (pre-filter)
 
-# SAHI slicing
-use_sahi: true
-slice_width: 650
-slice_height: 650
-overlap_ratio: 0.2
+  # SAHI slicing
+  use_sahi: true
+  slice_width: 650
+  slice_height: 650
+  overlap_ratio: 0.2
 
-# Airplane class ids (COCO: airplane = 5)
-airplane_class_ids: [5]
+  # Airplane class ids (COCO: airplane = 5)
+  airplane_class_ids: [5]
 
-# ROI  (null = full frame; list of [x,y] points = polygon)
+# Region of Interest
 roi:
-  - [1150, 1250]
-  - [7500, 800]
-  - [7500, 0]
-  - [1000, 0]
-  
-mask_roi: false
+  polygon:                   # null = full frame; list of [x,y] points = polygon
+    - [870, 1070]
+    - [2600, 860]
+    - [3800, 735]
+    - [4500, 700]
+    - [5200, 680]
+    - [6400, 690]
+    - [7000, 700]
+    - [7200, 0]
+    - [700, 0]
+  mask_frame: false          # if true, zero-out pixels outside ROI before detection
 
-# Episode state-machine
-episode_state_machine:
-  # IDLE -> ACTIVE (start trigger)
-  start_conf: 0.5                  # min conf to count as a "strong" detection
-  start_streak_k: 3                # K detections needed out of last N frames
-  start_streak_n: 5                # N-frame sliding window
+# Episode tracking
+tracking:
+  # IDLE → ACTIVE (start trigger)
+  start_conf: 0.5            # min conf to count as a "strong" detection
+  start_streak_k: 3          # K detections needed out of last N frames
+  start_streak_n: 5          # N-frame sliding window
 
   # ACTIVE keep-alive
-  keep_conf: 0.4                   # min conf for a detection to maintain episode
-  gate_px: 500                   # max px distance from Kalman prediction (gating)
-  max_pos_uncertainty: 5000.0      # max Kalman P-trace; above this, prediction ignored
+  keep_conf: 0.4             # min conf for a detection to maintain episode
+  gate_px: 500               # max px distance from Kalman prediction (gating)
+  max_pos_uncertainty: 5000.0  # max Kalman P-trace; above this, prediction ignored
 
   # LOST recovery
-  recover_conf: 0.5                # min conf to recover from LOST → ACTIVE
-  lost_timeout: 20                 # sampled-frames of total miss before episode closes
+  recover_conf: 0.5          # min conf to recover from LOST → ACTIVE
+  lost_timeout: 30           # sampled-frames of total miss before episode closes
 
   # Kalman filter
-  process_var: 50.0                # process noise variance
-  meas_var: 100.0                   # measurement noise variance
+  process_var: 70.0          # process noise variance
+  meas_var: 100.0            # measurement noise variance
 
 # Outputs
-output_dir: "./data"
-save_csv: true
-save_plot: true
-save_img: true
-hide_conf: false
-generate_video: true
+outputs:
+  output_dir: "./data"
+  save_csv: true
+  save_plot: true
+  save_img: true
+  hide_conf: false
+  generate_video: false
+
+# Logging
+logging:
+  level: "INFO"              # DEBUG, INFO, WARNING, ERROR
+  log_file: null             # path to log file (null = console only)
+  verbose: false             # verbose logging (enables DEBUG-level output)
