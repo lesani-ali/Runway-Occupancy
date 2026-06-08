@@ -29,12 +29,11 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = [
-    "black>=23.0.0",
-    "flake8>=6.0.0",
+    "ruff>=0.4"
 ]
 
 [project.scripts]
-air-track = "air_track.cli:cli"
+air-track = "air_track.main:cli"
 mkv2mp4 = "air_track.utils.mkv2mp4:main"
 
 [tool.setuptools.packages.find]
@@ -42,3 +41,7 @@ where = ["src"]
 
 [tool.setuptools.package-dir]
 "" = "src"
+
+[tool.ruff]
+line-length = 80
+target-version = "py310"
