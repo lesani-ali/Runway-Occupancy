@@ -64,9 +64,13 @@ def mkv_to_mp4(input_file: str, output_file: str = None) -> bool:
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("-i", "--input", required=True, help="Input MKV file or directory")
     parser.add_argument(
-        "-o", "--output", help="Output MP4 file (only for single file conversion)"
+        "-i", "--input", required=True, help="Input MKV file or directory"
+    )
+    parser.add_argument(
+        "-o",
+        "--output",
+        help="Output MP4 file (only for single file conversion)",
     )
 
     args = parser.parse_args()

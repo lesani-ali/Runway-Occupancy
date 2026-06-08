@@ -42,7 +42,9 @@ def save_episode_summary(out_path: Path, episodes: List) -> None:
 
     out_path.parent.mkdir(parents=True, exist_ok=True)
     with out_path.open("w", encoding="utf-8") as f:
-        _FileConsole(file=f, no_color=True, highlight=False, width=60).print(tbl)
+        _FileConsole(file=f, no_color=True, highlight=False, width=60).print(
+            tbl
+        )
 
 
 def save_csv(
@@ -116,7 +118,9 @@ def plot_episode_chart(
     for ep in episodes:
         color = _EP_COLORS[(ep.episode_id - 1) % len(_EP_COLORS)]
         ep_color_map[ep.episode_id] = color
-        ax.axvspan(ep.start_sec, ep.end_sec, alpha=0.15, color=color, linewidth=0)
+        ax.axvspan(
+            ep.start_sec, ep.end_sec, alpha=0.15, color=color, linewidth=0
+        )
 
         dur_str = hms(ep.rot_seconds)
         band_width = ep.end_sec - ep.start_sec
@@ -145,9 +149,13 @@ def plot_episode_chart(
         color = ep_color_map.get(ep_id, "#aaaaaa")
         lw = 1.5 if ep_id > 0 else 0.8
         draw_mask = (
-            mask & (presence == 1) if ep_id > 0 else mask & presence.astype(bool)
+            mask & (presence == 1)
+            if ep_id > 0
+            else mask & presence.astype(bool)
         )
-        y = np.where(draw_mask, 1.0 if ep_id > 0 else presence.astype(float), np.nan)
+        y = np.where(
+            draw_mask, 1.0 if ep_id > 0 else presence.astype(float), np.nan
+        )
         ax.step(times_sec, y, where="post", color=color, linewidth=lw)
 
     ax.set_ylim(-0.15, 1.35)
@@ -160,13 +168,19 @@ def plot_episode_chart(
     ax.xaxis.set_major_locator(ticker.MultipleLocator(tick_step))
     ax.xaxis.set_minor_locator(ticker.MultipleLocator(tick_step / 5))
     ax.xaxis.set_major_formatter(
-        ticker.FuncFormatter(lambda s, _: f"{int(s)//60:02d}:{int(s)%60:02d}")
+        ticker.FuncFormatter(
+            lambda s, _: f"{int(s) // 60:02d}:{int(s) % 60:02d}"
+        )
     )
     ax.set_xlabel("Time (MM:SS from video start)")
     plt.setp(ax.get_xticklabels(), rotation=45, ha="right", fontsize=8)
 
-    ax.grid(True, which="major", axis="x", linestyle="--", linewidth=0.4, alpha=0.6)
-    ax.grid(True, which="minor", axis="x", linestyle=":", linewidth=0.2, alpha=0.3)
+    ax.grid(
+        True, which="major", axis="x", linestyle="--", linewidth=0.4, alpha=0.6
+    )
+    ax.grid(
+        True, which="minor", axis="x", linestyle=":", linewidth=0.2, alpha=0.3
+    )
 
     if legend_patches:
         ax.legend(
@@ -195,7 +209,9 @@ def generate_video(input_folder: str, output_video: str, fps: int = 30) -> None:
             for f in os.listdir(input_folder)
             if f.lower().endswith((".png", ".jpg", ".jpeg"))
         ],
-        key=lambda x: int(re.findall(r"\d+", x)[0]) if re.findall(r"\d+", x) else 0,
+        key=lambda x: (
+            int(re.findall(r"\d+", x)[0]) if re.findall(r"\d+", x) else 0
+        ),
     )
 
     if not img_files:
@@ -219,6 +235,7 @@ def generate_video(input_folder: str, output_video: str, fps: int = 30) -> None:
             progress.update(task, advance=1)
 
     writer.close()
+
 
 def save_config(out_path: Path, cfg) -> None:
     """Save the config to a YAML file."""

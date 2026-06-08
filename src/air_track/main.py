@@ -21,7 +21,16 @@ from air_track.logging import setup_logger, get_logger, get_console
 
 logger = get_logger(__name__)
 
-def _save_outputs(result, save_dir, times_sec, fps, img_save_dir, save_csv_flg: bool, generate_video_flg: bool) -> None:
+
+def _save_outputs(
+    result,
+    save_dir,
+    times_sec,
+    fps,
+    img_save_dir,
+    save_csv_flg: bool,
+    generate_video_flg: bool,
+) -> None:
 
     presence = result["presence"]
     episode_labels = result["episode_labels"]
@@ -52,18 +61,26 @@ def _save_outputs(result, save_dir, times_sec, fps, img_save_dir, save_csv_flg: 
 
     # Console summary
     console = get_console()
-    console.print(f"\n[green bold][DONE][/green bold]\t\tResults saved to: {save_dir}")
+    console.print(
+        f"\n[green bold][DONE][/green bold]\t\tResults saved to: {save_dir}"
+    )
     console.print(
         f"  [dim]•[/dim] FPS:                [blue]{fps:.2f}[/blue] frames/sec"
     )
-    console.print(f"  [dim]•[/dim] Frames analysed:    [blue]{len(times_sec)}[/blue]")
+    console.print(
+        f"  [dim]•[/dim] Frames analysed:    [blue]{len(times_sec)}[/blue]"
+    )
     console.print(
         f"  [dim]•[/dim] Aircraft presence:  [blue]{int(np.sum(presence))}[/blue] frames"
     )
-    console.print(f"  [dim]•[/dim] Episodes found:     [blue]{len(episodes)}[/blue]")
+    console.print(
+        f"  [dim]•[/dim] Episodes found:     [blue]{len(episodes)}[/blue]"
+    )
 
     if episodes:
-        tbl = Table(title="Episode Summary", show_header=True, header_style="bold cyan")
+        tbl = Table(
+            title="Episode Summary", show_header=True, header_style="bold cyan"
+        )
         tbl.add_column("Episode", justify="center")
         tbl.add_column("Start", justify="right")
         tbl.add_column("End", justify="right")
@@ -143,9 +160,18 @@ def run(config_path, source) -> None:
         params=cfg.tracking,
     )
 
-    _save_outputs(result, save_dir, times_sec, fps, img_save_dir, out_cfg.save_csv, out_cfg.generate_video)
+    _save_outputs(
+        result,
+        save_dir,
+        times_sec,
+        fps,
+        img_save_dir,
+        out_cfg.save_csv,
+        out_cfg.generate_video,
+    )
 
     save_config(save_dir / "config.json", cfg)
+
 
 if __name__ == "__main__":
     cli()

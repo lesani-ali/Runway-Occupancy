@@ -38,7 +38,9 @@ class RichMessageFormatter(logging.Formatter):
         return f"[{style}]{message}[/{style}]"
 
 
-def setup_logger(name: str, level: str = "INFO", log_file: Path | str | None = None) -> None:
+def setup_logger(
+    name: str, level: str = "INFO", log_file: Path | str | None = None
+) -> None:
 
     logger = logging.getLogger(name)
     logger.handlers.clear()
@@ -54,7 +56,9 @@ def setup_logger(name: str, level: str = "INFO", log_file: Path | str | None = N
         show_level=False,
         rich_tracebacks=True,
     )
-    console_handler.setFormatter(RichMessageFormatter(fmt=_FMT, datefmt=_DATE_FMT))
+    console_handler.setFormatter(
+        RichMessageFormatter(fmt=_FMT, datefmt=_DATE_FMT)
+    )
     console_handler.setLevel(level.upper())
     logger.addHandler(console_handler)
 
@@ -65,7 +69,9 @@ def setup_logger(name: str, level: str = "INFO", log_file: Path | str | None = N
             log_path, maxBytes=5 * 1024 * 1024, backupCount=3, encoding="utf-8"
         )
         file_handler.setLevel(level.upper())
-        file_handler.setFormatter(logging.Formatter(fmt=_FMT, datefmt=_DATE_FMT))
+        file_handler.setFormatter(
+            logging.Formatter(fmt=_FMT, datefmt=_DATE_FMT)
+        )
         logger.addHandler(file_handler)
 
     logger.propagate = False

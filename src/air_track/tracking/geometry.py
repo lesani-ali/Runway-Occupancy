@@ -42,7 +42,9 @@ def filter_by_roi(
     if not roi_poly or len(roi_poly) < 3:
         return dets
     return [
-        (box, conf) for box, conf in dets if point_in_poly(box_center(box), roi_poly)
+        (box, conf)
+        for box, conf in dets
+        if point_in_poly(box_center(box), roi_poly)
     ]
 
 
@@ -68,6 +70,8 @@ def select_best_near_prediction(
     px, py = pred_xy
     return min(
         cands,
-        key=lambda d: np.hypot(box_center(d[0])[0] - px, box_center(d[0])[1] - py),
+        key=lambda d: np.hypot(
+            box_center(d[0])[0] - px, box_center(d[0])[1] - py
+        ),
         default=None,
     )

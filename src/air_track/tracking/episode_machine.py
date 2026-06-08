@@ -80,7 +80,9 @@ class EpisodeMachine:
         self.presence.append(0)  # default; overwritten below
         candidates = filter_by_roi(raw_dets, self.roi_poly)
 
-        logger.debug(f"State: {self.state.name}, t: {t}, candidates: {len(candidates)}")
+        logger.debug(
+            f"State: {self.state.name}, t: {t}, candidates: {len(candidates)}"
+        )
 
         if self.state == State.IDLE:
             self._handle_idle(t, candidates)
@@ -91,7 +93,10 @@ class EpisodeMachine:
 
     def finalize(self) -> None:
         """Close any episode still open at end of video."""
-        if self.state in (State.ACTIVE, State.LOST) and self.episode_start is not None:
+        if (
+            self.state in (State.ACTIVE, State.LOST)
+            and self.episode_start is not None
+        ):
             logger.debug(
                 f"Finalizing episode {self.episode_id}: state={self.state}, start={self.episode_start}, last_reliable={self.last_reliable}",
             )
@@ -191,8 +196,13 @@ class EpisodeMachine:
 
     def _pred_reliable(self, pred_xy) -> bool:
         """True if Kalman prediction is trustworthy (inside ROI and low uncertainty)."""
-        in_roi = point_in_poly(pred_xy, self.roi_poly) if self.roi_poly else True
-        return in_roi and self.tracker.uncertainty() <= self.params.max_pos_uncertainty
+        in_roi = (
+            point_in_poly(pred_xy, self.roi_poly) if self.roi_poly else True
+        )
+        return (
+            in_roi
+            and self.tracker.uncertainty() <= self.params.max_pos_uncertainty
+        )
 
     def _make_episode(self, start_frame: int, end_frame: int) -> Episode:
         start_sec = float(self.times_sec[start_frame])

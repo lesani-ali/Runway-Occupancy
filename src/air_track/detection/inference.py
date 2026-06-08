@@ -72,12 +72,17 @@ def detect_aircraft_in_frame(
         all_labels = predictions["labels"].cpu().numpy()
         all_scores = predictions["scores"].cpu().numpy()
 
-        mask = (all_scores >= conf_threshold) & np.isin(all_labels, airplane_class_ids)
+        mask = (all_scores >= conf_threshold) & np.isin(
+            all_labels, airplane_class_ids
+        )
         boxes = all_boxes[mask].tolist()
         labels = all_labels[mask].tolist()
         scores = all_scores[mask].tolist()
 
-    dets = [(tuple(map(float, box)), float(score)) for box, score in zip(boxes, scores)]
+    dets = [
+        (tuple(map(float, box)), float(score))
+        for box, score in zip(boxes, scores)
+    ]
     raw_results = {
         "boxes": np.array(boxes, dtype=np.float32),
         "labels": np.array(labels, dtype=np.int32),
@@ -142,7 +147,6 @@ def process_video(
                 break
 
             if frame_index % stride == 0:
-
                 frame_for_det = frame
                 if roi is not None and roi_cfg.mask_frame:
                     frame_for_det = apply_roi_mask(frame, roi)
@@ -161,13 +165,20 @@ def process_video(
 
                 if out_cfg.save_img and save_dir is not None:
                     _save_annotated_frame(
-                        frame, raw_results, processed, save_dir, out_cfg.hide_conf
+                        frame,
+                        raw_results,
+                        processed,
+                        save_dir,
+                        out_cfg.hide_conf,
                     )
 
                 processed += 1
                 progress.update(task, advance=1)
 
-                if vid_cfg.max_frames is not None and processed >= vid_cfg.max_frames:
+                if (
+                    vid_cfg.max_frames is not None
+                    and processed >= vid_cfg.max_frames
+                ):
                     break
 
             frame_index += 1
