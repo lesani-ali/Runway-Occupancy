@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import yaml
+from pathlib import Path
 from typing import List, Literal, Optional
 from pydantic import BaseModel, Field
 
@@ -63,9 +65,19 @@ class LoggingConfig(BaseModel):
 
 
 class Config(BaseModel):
+    package_name: str = "air_track"
     video: VideoConfig = Field(default_factory=VideoConfig)
     model: ModelConfig = Field(default_factory=ModelConfig)
     roi: RoiConfig = Field(default_factory=RoiConfig)
     tracking: TrackingConfig = Field(default_factory=TrackingConfig)
     outputs: OutputsConfig = Field(default_factory=OutputsConfig)
     logging: LoggingConfig = Field(default_factory=LoggingConfig)
+
+    @classmethod
+    def from_yaml(cls, path: str) -> Config:
+        path = Path(path)
+        if not path.exists():
+            raise FileNotFoundError(f"Config file not found: {path}")
+        with path.open("r", encoding="utf-8") as fh:
+            data = yaml.safe_load(fh) or {}
+        return cls.model_validate(data)

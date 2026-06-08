@@ -4,7 +4,7 @@ import numpy as np
 from air_track.tracking.geometry import box_center, Detection, Point
 
 
-class SimpleKalmanCV:
+class CVKalmanFilter:
     """
     Constant-velocity Kalman filter tracking the center of a bounding box.
 
@@ -77,7 +77,7 @@ class SimpleKalmanCV:
 
 class SingleObjectTracker:
     """
-    Wraps SimpleKalmanCV with detection association for a single object.
+    Wraps CVKalmanFilter with detection association for a single object.
     One instance per active episode.
     """
 
@@ -90,7 +90,7 @@ class SingleObjectTracker:
     ) -> None:
         box, conf = init_det
         cx, cy = box_center(box)
-        self.kf = SimpleKalmanCV(
+        self.kf = CVKalmanFilter(
             (cx, cy), dt=dt, process_var=process_var, meas_var=meas_var
         )
         self.last_conf = conf

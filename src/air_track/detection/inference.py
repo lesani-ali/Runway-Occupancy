@@ -33,16 +33,16 @@ def detect_aircraft_in_frame(
     overlap_ratio: float,
 ) -> Tuple[List[Detection], dict]:
     """Run detection on one frame, return typed detections and raw results."""
+    model = detection_model["model"]
     use_sahi = detection_model.get("use_sahi", False)
     conf_threshold = detection_model["conf"]
 
     frame_rgb = cv2.cvtColor(frame_bgr, cv2.COLOR_BGR2RGB)
 
     if use_sahi:
-        sahi_model = detection_model["sahi_model"]
         result = get_sliced_prediction(
             frame_rgb,
-            sahi_model,
+            model,
             slice_height=slice_height,
             slice_width=slice_width,
             overlap_height_ratio=overlap_ratio,
@@ -56,7 +56,6 @@ def detect_aircraft_in_frame(
                 labels.append(pred.category.id)
                 scores.append(pred.score.value)
     else:
-        model = detection_model["model"]
         device = detection_model["device"]
         frame_tensor = (
             torch.from_numpy(frame_rgb)

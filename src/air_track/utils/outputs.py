@@ -20,7 +20,7 @@ from rich.console import Console as _FileConsole
 from rich.table import Table
 
 from air_track.utils.utils import hms
-from air_track.logging.logger import get_logger, get_console
+from air_track.logging import get_logger, get_console
 
 logger = get_logger(__name__)
 
@@ -219,3 +219,9 @@ def generate_video(input_folder: str, output_video: str, fps: int = 30) -> None:
             progress.update(task, advance=1)
 
     writer.close()
+
+def save_config(out_path: Path, cfg) -> None:
+    """Save the config to a YAML file."""
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    with out_path.open("w", encoding="utf-8") as f:
+        f.write(cfg.model_dump_json(indent=4))

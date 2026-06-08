@@ -34,7 +34,7 @@ dev = [
 ]
 
 [project.scripts]
-air-track = "air_track.cli.main:cli"
+air-track = "air_track.cli:cli"
 mkv2mp4 = "air_track.utils.mkv2mp4:main"
 
 [tool.setuptools.packages.find]

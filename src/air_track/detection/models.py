@@ -21,7 +21,7 @@ def load_detection_model(
             device=device,
         )
         return {
-            "sahi_model": sahi_model,
+            "model": sahi_model,
             "device": device,
             "conf": conf,
             "use_sahi": use_sahi,
