@@ -8,11 +8,11 @@ set -o pipefail
 #
 # Usage: ./run_experiments.sh -s <source_video> [-c <config_file>]
 #   -s: Path to input video file (required)
-#   -c: Path to config file (optional, default: config/default.yaml)
+#   -c: Path to config file (optional, default: config/inference.yaml)
 #   -r: Path to results file (optional, default: experiment_results.txt)
 
 # Default values
-CONFIG_FILE="config/default.yaml"
+CONFIG_FILE="config/inference.yaml"
 SOURCE_VIDEO=""
 RESULTS_FILE="experiment_results.txt"
 
@@ -31,9 +31,9 @@ while getopts "s:c:r:h" opt; do
         h)
             echo "Usage: $0 -s <source_video> [-c <config_file>]"
             echo "  -s: Path to input video file (required)"
-            echo "  -c: Path to config file (optional, default: config/default.yaml)"
+            echo "  -c: Path to config file (optional, default: config/inference.yaml)"
             echo "  -r: Path to results file (optional, default: experiment_results.txt)"
-            echo "Example: $0 -s ./data/takeoff.mp4 -c config/default.yaml -r experiment_results.txt"
+            echo "Example: $0 -s ./data/takeoff.mp4 -c config/inference.yaml -r experiment_results.txt"
             exit 0
             ;;
         \?)
