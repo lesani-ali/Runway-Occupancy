@@ -3,7 +3,7 @@ from __future__ import annotations
 import yaml
 from pathlib import Path
 from typing import List, Literal, Optional
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 
 class VideoConfig(BaseModel):
@@ -12,14 +12,16 @@ class VideoConfig(BaseModel):
 
 
 class ModelConfig(BaseModel):
-    weights: str = "fasterrcnn_resnet50_fpn"
+    # "torchvision" -> Faster R-CNN / RetinaNet; "ultralytics" -> YOLO (.pt)
+    family: Literal["torchvision", "ultralytics"] = "torchvision"
+    checkpoint: str = "fasterrcnn_resnet50_fpn"
     device: str = "cpu"
-    conf: float = 0.3
+    conf: float = Field(default=0.3, ge=0.0, le=1.0)
 
     use_sahi: bool = False
-    slice_width: int = 650
-    slice_height: int = 650
-    overlap_ratio: float = 0.2
+    slice_width: int = Field(default=650, gt=0)
+    slice_height: int = Field(default=650, gt=0)
+    overlap_ratio: float = Field(default=0.2, ge=0.0, le=1.0)
 
     airplane_class_ids: List[int] = Field(default_factory=lambda: [5])
 
@@ -58,6 +60,10 @@ class OutputsConfig(BaseModel):
     generate_video: bool = False
 
 
+class EvaluationConfig(BaseModel):
+    iou_threshold: float = 0.5
+
+
 class LoggingConfig(BaseModel):
     level: Literal["DEBUG", "INFO", "WARNING", "ERROR"] = "INFO"
     log_file: Optional[str] = None
@@ -71,6 +77,7 @@ class Config(BaseModel):
     roi: RoiConfig = Field(default_factory=RoiConfig)
     tracking: TrackingConfig = Field(default_factory=TrackingConfig)
     outputs: OutputsConfig = Field(default_factory=OutputsConfig)
+    evaluation: EvaluationConfig = Field(default_factory=EvaluationConfig)
     logging: LoggingConfig = Field(default_factory=LoggingConfig)
 
     @classmethod

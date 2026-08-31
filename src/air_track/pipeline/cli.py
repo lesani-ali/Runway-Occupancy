@@ -6,8 +6,8 @@ from pathlib import Path
 import click
 from rich.table import Table
 
-from air_track.config import Config
-from air_track.detection import process_video
+from air_track.pipeline.config import Config
+from air_track.detection import process_video, save_detections, load_detections
 from air_track.tracking import run_episode_state_machine
 from air_track.utils.outputs import (
     save_config,
@@ -18,6 +18,7 @@ from air_track.utils.outputs import (
 )
 from air_track.utils import hms, increment_path
 from air_track.logging import setup_logger, get_logger, get_console
+from air_track.evaluation import Evaluator, load_ground_truth_JSON
 
 logger = get_logger(__name__)
 
@@ -99,28 +100,28 @@ def _save_outputs(
         logger.info(f"Saved episode summary: {summary_path}")
 
 
-@click.group()
-def cli():
-    pass
-
-
-@cli.command()
+@click.command()
 @click.option(
-    "-c",
-    "--config",
-    "config_path",
-    type=click.Path(exists=True),
-    default="config/config.yaml",
+    "-c", "--config", "config_path",
+    type=click.Path(exists=True), default="config/inference.yaml",
     help="Path to config YAML file",
 )
 @click.option(
-    "-s",
-    "--source",
-    type=click.Path(exists=True),
-    default="data/videos/runway_occupancy.mp4",
+    "-s", "--source",
+    type=click.Path(exists=True), default="data/videos/runway_occupancy.mp4",
     help="Path to input video file",
 )
-def run(config_path, source) -> None:
+@click.option(
+    "--gt", "gt_path",
+    type=click.Path(exists=True), default=None,
+    help="Ground-truth CSV for evaluation (optional).",
+)
+@click.option(
+    "-d", "--detections", "detections_path",
+    type=click.Path(exists=True), default=None,
+    help="Cached detections JSON. If set, skips inference and reuses these detections.",
+)
+def run(config_path, source, gt_path, detections_path) -> None:
     # Load configuration and setup logger
     cfg = Config.from_yaml(config_path)
     log_cfg = cfg.logging
@@ -142,13 +143,21 @@ def run(config_path, source) -> None:
         img_save_dir.mkdir(parents=True, exist_ok=True)
     logger.info(f"Output directory: {save_dir}")
 
-    # Process video
-    logger.info(f"Processing video: {source}")
-    times_sec, sampled_dets, fps = process_video(
-        video_path=source,
-        config=cfg,
-        save_dir=img_save_dir,
-    )
+    # Detections: reuse cache if given, otherwise run inference over the video
+    if detections_path:
+        logger.info(f"Loading cached detections: {detections_path}")
+        times_sec, sampled_dets, fps = load_detections(detections_path)
+        logger.info(f"Loaded {len(sampled_dets)} cached frames")
+    else:
+        logger.info(f"Processing video: {source}")
+        times_sec, sampled_dets, fps = process_video(
+            video_path=source,
+            config=cfg,
+            save_dir=img_save_dir,
+        )
+        save_detections(
+            save_dir / "detections.json", times_sec, sampled_dets, fps, source
+        )
 
     # Run episode state machine
     logger.info("Running episode state machine …")
@@ -172,6 +181,15 @@ def run(config_path, source) -> None:
 
     save_config(save_dir / "config.json", cfg)
 
+    if gt_path:
+        logger.info("Running evaluation …")
+        evaluator = Evaluator(cfg.evaluation.iou_threshold)
+        ground_truth = load_ground_truth_JSON(gt_path)
+        eval_results = evaluator.evaluate(result["episodes"], ground_truth)
+        evaluator.print_report(eval_results)
+        evaluator.save_report(eval_results, save_dir / "evaluation_report.txt")
+        logger.info(f"Saved evaluation report: {save_dir / 'evaluation_report.txt'}")
+
 
 if __name__ == "__main__":
-    cli()
+    run()

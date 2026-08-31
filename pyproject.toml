@@ -13,6 +13,7 @@ readme = "README.md"
 dependencies = [
     "torch>=2.0",
     "torchvision>=0.15",
+    "torchmetrics>=1.0",
 
     "opencv-python",
     "numpy",
@@ -31,16 +32,17 @@ dependencies = [
 dev = [
     "ruff>=0.4"
 ]
+yolo = [
+    "ultralytics>=8.1"
+]
 
 [project.scripts]
-air-track = "air_track.main:cli"
+air-track = "air_track.pipeline.cli:run"
+air-track-train = "air_track.training.cli:train"
 mkv2mp4 = "air_track.utils.mkv2mp4:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
-
-[tool.setuptools.package-dir]
-"" = "src"
 
 [tool.ruff]
 line-length = 80
