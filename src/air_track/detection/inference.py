@@ -55,6 +55,15 @@ def detect_aircraft_in_frame(
                 boxes.append(pred.bbox.to_voc_bbox())
                 labels.append(pred.category.id)
                 scores.append(pred.score.value)
+    elif detection_model.get("family") == "ultralytics":
+        # Direct (non-SAHI) YOLO. ultralytics expects BGR numpy input.
+        boxes, labels, scores = _predict_ultralytics_direct(
+            model,
+            frame_bgr,
+            conf_threshold,
+            airplane_class_ids,
+            detection_model["device"],
+        )
     else:
         device = detection_model["device"]
         frame_tensor = (
@@ -65,7 +74,7 @@ def detect_aircraft_in_frame(
             .unsqueeze(0)
             .to(device)
         )
-        with torch.no_grad():
+        with torch.inference_mode():
             predictions = model(frame_tensor)[0]
 
         all_boxes = predictions["boxes"].cpu().numpy()
@@ -91,6 +100,35 @@ def detect_aircraft_in_frame(
     return dets, raw_results
 
 
+def _predict_ultralytics_direct(
+    model,
+    frame_bgr: np.ndarray,
+    conf: float,
+    airplane_class_ids: List[int],
+    device: str,
+) -> Tuple[list, list, list]:
+    """Run a YOLO model directly (no SAHI) and return (boxes, labels, scores)."""
+    results = model.predict(
+        frame_bgr,
+        conf=conf,
+        classes=list(airplane_class_ids),
+        device=device,
+        verbose=False,
+    )
+    boxes, labels, scores = [], [], []
+    if results and results[0].boxes is not None:
+        r = results[0].boxes
+        for xyxy, score, cls in zip(
+            r.xyxy.cpu().numpy(),
+            r.conf.cpu().numpy(),
+            r.cls.cpu().numpy(),
+        ):
+            boxes.append([float(v) for v in xyxy])
+            scores.append(float(score))
+            labels.append(int(cls))
+    return boxes, labels, scores
+
+
 def process_video(
     video_path: str,
     config,
@@ -113,13 +151,14 @@ def process_video(
     use_sahi = mdl_cfg.use_sahi
 
     logger.info(
-        f"Loading model {mdl_cfg.weights} on {mdl_cfg.device} (SAHI: {'yes' if use_sahi else 'no'})",
+        f"Loading model {mdl_cfg.checkpoint} on {mdl_cfg.device} (SAHI: {'yes' if use_sahi else 'no'})",
     )
     detection_model = load_detection_model(
-        weights=mdl_cfg.weights,
+        checkpoint=mdl_cfg.checkpoint,
         device=mdl_cfg.device,
         conf=mdl_cfg.conf,
         use_sahi=use_sahi,
+        family=mdl_cfg.family,
     )
     logger.info(f"Device: {detection_model['device']}")
 
