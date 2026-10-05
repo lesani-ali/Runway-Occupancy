@@ -1,0 +1,36 @@
+# RetinaNet fine-tuning config.  Run with:  air-track-train -c config/train_retinanet.yaml
+#
+# The dataset must be in YOLO detection format (images/ + labels/ + data.yaml).
+# Class count and names are read from the data.yaml.
+
+# ---- YOLO-format data ----
+data_yaml: "./data/model_train/data-final/data.yaml"   # train/val image dirs + class names
+
+# ---- Which detector to fine-tune ----
+family: "torchvision"
+weights: "retinanet_resnet50_fpn"
+device: "cuda:0"
+
+# ---- Training schedule (SGD + StepLR) ----
+# torchvision's reference recipe is lr 0.01 at batch 16; scaled linearly to batch 4.
+# RetinaNet's focal loss is less stable than Faster R-CNN, hence half its LR.
+epochs: 50
+batch_size: 4
+lr: 0.0025
+momentum: 0.9
+weight_decay: 0.0001   # torchvision RetinaNet reference value
+lr_step_size: 35       # one 10x drop late in training
+lr_gamma: 0.1
+workers: 4
+seed: 0
+
+# ---- Augmentation ----
+hflip_prob: 0.5        # random horizontal flip (train split only)
+
+# ---- Anchors ----
+# Custom anchor aspect ratios are Faster R-CNN only; RetinaNet keeps its defaults.
+anchor_aspect_ratios: null
+
+# ---- Output ----
+output_dir: "runs"
+run_name: "retinanet"  # weights land in runs/retinanet/best.pt
