@@ -128,7 +128,12 @@ def _load_checkpoint(checkpoint: str):
         f"class_{i + 1}" for i in range(num_fg)
     ]
 
-    model = build_torchvision_model(weights_name, num_fg, pretrained=False)
+    model = build_torchvision_model(
+        weights_name,
+        num_fg,
+        pretrained=False,
+        anchor_aspect_ratios=ckpt.get("anchor_aspect_ratios"),
+    )
     model.load_state_dict(state)
 
     offset = label_offset_for(weights_name)

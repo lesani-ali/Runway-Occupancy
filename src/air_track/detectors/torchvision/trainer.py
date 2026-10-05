@@ -38,7 +38,9 @@ class TorchvisionTrainer(BaseTrainer):
             self.build_dataloaders(cfg)
         )
         self.model = build_torchvision_model(
-            cfg.weights, self.train_ds.num_fg_classes
+            cfg.weights,
+            self.train_ds.num_fg_classes,
+            anchor_aspect_ratios=cfg.anchor_aspect_ratios,
         ).to(self.device)
         self.optimizer = self.build_optimizer(self.model, cfg)
         self.scheduler = self.build_scheduler(self.optimizer, cfg)
@@ -189,7 +191,9 @@ class TorchvisionTrainer(BaseTrainer):
         # YOLO class ids are 0-based; Faster R-CNN reserves 0 for background, so
         # its targets are shifted by 1, while RetinaNet (focal loss) stays 0-based.
         label_offset = label_offset_for(cfg.weights)
-        train_ds, val_ds = build_yolo_datasets(cfg.data_yaml, label_offset)
+        train_ds, val_ds = build_yolo_datasets(
+            cfg.data_yaml, label_offset, cfg.hflip_prob
+        )
 
         train_loader = DataLoader(
             train_ds,
@@ -245,4 +249,5 @@ class TorchvisionTrainer(BaseTrainer):
             "num_fg_classes": train_ds.num_fg_classes,
             "class_names": train_ds.class_names,
             "label_offset": train_ds.label_offset,
+            "anchor_aspect_ratios": cfg.anchor_aspect_ratios,
         }

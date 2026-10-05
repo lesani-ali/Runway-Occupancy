@@ -12,7 +12,8 @@ logger = get_logger(__name__)
 @register_trainer("ultralytics")
 class UltralyticsTrainer(BaseTrainer):
     """Fine-tune a YOLO detector. Ultralytics consumes the YOLO-format
-    ``data.yaml`` directly, so no dataset adaptation is needed."""
+    ``data.yaml`` directly, so no dataset adaptation is needed. The optimizer
+    and learning rate are left to Ultralytics' ``optimizer="auto"``."""
 
     @classmethod
     def train(cls, cfg) -> Path:
@@ -24,8 +25,10 @@ class UltralyticsTrainer(BaseTrainer):
             epochs=cfg.epochs,
             imgsz=cfg.img_size,
             batch=cfg.batch_size,
+            workers=cfg.workers,
+            fliplr=cfg.hflip_prob,
             device=cfg.device,
-            project=cfg.output_dir,
+            project=(Path(cfg.output_dir).resolve()),
             name=cfg.run_name,
             seed=cfg.seed,
         )

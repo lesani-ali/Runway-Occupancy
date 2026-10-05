@@ -35,18 +35,23 @@ def _images_to_labels_dir(images_dir: Path) -> Path:
 
 
 def build_yolo_datasets(
-    data_yaml: str, label_offset: int
+    data_yaml: str, label_offset: int, hflip_prob: float = 0.0
 ) -> Tuple["YoloDetectionDataset", Optional["YoloDetectionDataset"]]:
-    """Build train (and optional val) datasets from a YOLO ``data.yaml``."""
+    """Build train (and optional val) datasets from a YOLO ``data.yaml``.
+
+    Augmentation (``hflip_prob``) is applied to the train split only.
+    """
     yaml_path = Path(data_yaml)
     with yaml_path.open("r", encoding="utf-8") as fh:
         cfg = yaml.safe_load(fh) or {}
 
-    root = _resolve(yaml_path.parent, cfg.get("path", "."))
+    root = Path(cfg["path"]) if cfg.get("path") else yaml_path.parent
     class_names = _parse_names(cfg["names"])
 
     train_images = _resolve(root, cfg["train"])
-    train_ds = YoloDetectionDataset(train_images, class_names, label_offset)
+    train_ds = YoloDetectionDataset(
+        train_images, class_names, label_offset, hflip_prob
+    )
 
     val_ds = None
     if cfg.get("val"):
@@ -65,6 +70,7 @@ class YoloDetectionDataset(Dataset):
     float tensor in [0, 1] and target has ``boxes`` (pixel xyxy) and ``labels``.
     ``label_offset`` maps YOLO's 0-based class ids to the model's convention
     (1 for Faster R-CNN, whose 0 is background; 0 for RetinaNet).
+    ``hflip_prob`` is the chance of horizontally flipping an image and its boxes.
     """
 
     def __init__(
@@ -72,11 +78,13 @@ class YoloDetectionDataset(Dataset):
         images_dir,
         class_names: List[str],
         label_offset: int = 1,
+        hflip_prob: float = 0.0,
     ):
         self.images_dir = Path(images_dir)
         self.labels_dir = _images_to_labels_dir(self.images_dir)
         self.class_names = list(class_names)
         self.label_offset = label_offset
+        self.hflip_prob = hflip_prob
         self.image_paths = sorted(
             p
             for p in self.images_dir.iterdir()
@@ -133,6 +141,10 @@ class YoloDetectionDataset(Dataset):
         else:
             boxes_t = torch.zeros((0, 4), dtype=torch.float32)
             labels_t = torch.zeros((0,), dtype=torch.int64)
+
+        if torch.rand(1).item() < self.hflip_prob:
+            image = image.flip(-1)
+            boxes_t[:, [0, 2]] = width - boxes_t[:, [2, 0]]
 
         target = {
             "boxes": boxes_t,
