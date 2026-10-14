@@ -1,0 +1,31 @@
+# YOLO fine-tuning config.  Run with:  air-track-train -c config/train_yolo.yaml
+#
+# The dataset must be in YOLO detection format (images/ + labels/ + data.yaml).
+# Class count and names are read from the data.yaml.
+# First install YOLO support:  pip install -e ".[yolo]"
+
+# ---- YOLO-format data ----
+data_yaml: "./data/model_train/data-final/data.yaml"   # train/val image dirs + class names
+
+# ---- Which detector to fine-tune ----
+family: "ultralytics"
+weights: "weights/yolo26s.pt"     # any Ultralytics .pt (yolo11n/s/m/l/x.pt); downloaded if missing
+device: "cuda:0"
+
+# ---- Training schedule ----
+# Optimizer, LR, momentum and weight decay are chosen by Ultralytics (optimizer="auto"),
+# so lr/momentum/weight_decay/lr_step_size/lr_gamma are not used here.
+epochs: 50
+batch_size: 16
+workers: 4
+seed: 0
+
+# ---- Augmentation ----
+hflip_prob: 0.5        # random horizontal flip (Ultralytics fliplr)
+
+# ---- Image size ----
+img_size: 640          # matches the 640x640 training crops
+
+# ---- Output ----
+output_dir: "runs"
+run_name: "yolo26s"    # weights land in runs/yolo26s/weights/best.pt

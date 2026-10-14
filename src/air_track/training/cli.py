@@ -3,6 +3,7 @@ from __future__ import annotations
 import click
 
 from air_track.training.config import TrainConfig
+from air_track.detectors import get_trainer
 from air_track.logging import setup_logger, get_logger
 
 logger = get_logger(__name__)
@@ -20,14 +21,7 @@ def train(config_path) -> None:
     setup_logger(name=cfg.package_name, level="INFO")
     logger.info(f"Loaded training config: {config_path} (family={cfg.family})")
 
-    if cfg.family == "ultralytics":
-        from air_track.training import ultralytics_trainer
-
-        ultralytics_trainer.train(cfg)
-    else:
-        from air_track.training import torchvision_trainer
-
-        torchvision_trainer.train(cfg)
+    get_trainer(cfg.family).train(cfg)
 
 
 if __name__ == "__main__":

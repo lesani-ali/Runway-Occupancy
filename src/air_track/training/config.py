@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import yaml
 from pathlib import Path
-from typing import Literal
+from typing import List, Literal, Optional
 from pydantic import BaseModel
 
 
@@ -24,6 +24,12 @@ class TrainConfig(BaseModel):
     lr_gamma: float = 0.1          # torchvision StepLR
     workers: int = 4
     seed: int = 0
+
+    # Augmentation
+    hflip_prob: float = 0.5
+
+    # Faster R-CNN only: RPN anchor aspect ratios (h/w); None = torchvision's
+    anchor_aspect_ratios: Optional[List[float]] = None
 
     # Ultralytics-only
     img_size: int = 640

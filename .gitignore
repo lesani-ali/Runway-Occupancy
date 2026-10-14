@@ -21,7 +21,6 @@ wheels/
 *.whl
 share/python-wheels/
 *.egg-info/
-src/llm_app.egg-info/
 .installed.cfg
 *.egg
 MANIFEST
@@ -47,6 +46,9 @@ Thumbs.db
 # Application specific
 data/*
 !data/.gitkeep
+runs/
+weights/
+docs/
 
 # Logs
 *.log
@@ -72,3 +74,4 @@ secrets/
 
 # linting and formatting
 .flake8
+.ruff_cache/

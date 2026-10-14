@@ -7,7 +7,9 @@ import click
 from rich.table import Table
 
 from air_track.pipeline.config import Config
-from air_track.detection import process_video, save_detections, load_detections
+from air_track.pipeline.video import process_video
+from air_track.pipeline.cache import save_detections, load_detections
+from air_track.pipeline.evaluation import Evaluator, load_ground_truth_JSON
 from air_track.tracking import run_episode_state_machine
 from air_track.utils.outputs import (
     save_config,
@@ -18,7 +20,6 @@ from air_track.utils.outputs import (
 )
 from air_track.utils import hms, increment_path
 from air_track.logging import setup_logger, get_logger, get_console
-from air_track.evaluation import Evaluator, load_ground_truth_JSON
 
 logger = get_logger(__name__)
 
