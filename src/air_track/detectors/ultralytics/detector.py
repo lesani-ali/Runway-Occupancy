@@ -95,3 +95,47 @@ class UltralyticsDetector(BaseDetector):
             ):
                 dets.append((tuple(float(v) for v in xyxy), float(score)))
         return dets
+
+    def validate(
+        self, data_yaml: str, class_ids: List[int], split: str = "val"
+    ) -> dict:
+        # Same torchmetrics mAP as the torchvision detector, so scores compare
+        # 1:1. Single class: every aircraft prediction is scored as label 0.
+        import torch
+        from torchmetrics.detection import MeanAveragePrecision
+
+        from air_track.detectors.torchvision.dataset import build_yolo_datasets
+
+        # No hflip_prob, so the train split is read without augmentation
+        train_ds, val_ds = build_yolo_datasets(data_yaml, label_offset=0)
+        dataset = train_ds if split == "train" else val_ds
+        if dataset is None:
+            raise ValueError(f"No separate val split in {data_yaml}")
+
+        preds, targets = [], []
+        for image, target in dataset:
+            # dataset gives an RGB CHW float tensor; YOLO wants BGR uint8
+            frame_bgr = image.permute(1, 2, 0).mul(255).byte().numpy()[..., ::-1]
+            boxes = self.model.predict(
+                frame_bgr,
+                conf=0.001,  # mAP needs low-score boxes too
+                classes=list(class_ids),
+                device=self.device,
+                verbose=False,
+            )[0].boxes
+            preds.append({
+                "boxes": boxes.xyxy.cpu(),
+                "scores": boxes.conf.cpu(),
+                "labels": torch.zeros(len(boxes), dtype=torch.int64),
+            })
+            targets.append({"boxes": target["boxes"], "labels": target["labels"]})
+
+        metric = MeanAveragePrecision(box_format="xyxy")
+        metric.update(preds, targets)
+        result = metric.compute()
+        return {
+            "map_50": float(result["map_50"]),
+            "map_50_95": float(result["map"]),
+            "preds": preds,
+            "targets": targets,
+        }

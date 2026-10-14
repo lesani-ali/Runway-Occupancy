@@ -5,10 +5,12 @@ from typing import List
 import cv2
 import numpy as np
 import torch
+from torchmetrics.detection import MeanAveragePrecision
 
 from air_track.detectors.base import BaseDetector
 from air_track.detectors.registry import register_detector
 from air_track.detectors.sahi import sliced_predict
+from air_track.detectors.torchvision.dataset import build_yolo_datasets
 from air_track.detectors.torchvision.model import (
     MODEL_NAME_TO_CONSTRUCTOR,
     build_torchvision_model,
@@ -108,6 +110,40 @@ class TorchvisionDetector(BaseDetector):
             (tuple(map(float, box)), float(score))
             for box, score in zip(boxes[mask], scores[mask])
         ]
+
+    @torch.inference_mode()
+    def validate(
+        self, data_yaml: str, class_ids: List[int], split: str = "val"
+    ) -> dict:
+        # Single class: keep only aircraft predictions and score every box as
+        # label 0, so COCO-pretrained and fine-tuned models compare the same way.
+        # No hflip_prob, so the train split is read without augmentation
+        train_ds, val_ds = build_yolo_datasets(data_yaml, label_offset=0)
+        dataset = train_ds if split == "train" else val_ds
+        if dataset is None:
+            raise ValueError(f"No separate val split in {data_yaml}")
+
+        self.model.to(self.device).eval()
+        preds, targets = [], []
+        for image, target in dataset:
+            pred = self.model([image.to(self.device)])[0]
+            keep = torch.isin(pred["labels"], torch.tensor(class_ids, device=self.device))
+            preds.append({
+                "boxes": pred["boxes"][keep].cpu(),
+                "scores": pred["scores"][keep].cpu(),
+                "labels": torch.zeros(int(keep.sum()), dtype=torch.int64),
+            })
+            targets.append({"boxes": target["boxes"], "labels": target["labels"]})
+
+        metric = MeanAveragePrecision(box_format="xyxy")
+        metric.update(preds, targets)
+        result = metric.compute()
+        return {
+            "map_50": float(result["map_50"]),
+            "map_50_95": float(result["map"]),
+            "preds": preds,
+            "targets": targets,
+        }
 
 
 def _load_checkpoint(checkpoint: str):

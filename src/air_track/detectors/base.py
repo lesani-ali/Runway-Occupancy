@@ -40,6 +40,16 @@ class BaseDetector(ABC):
         Returns ``[((x1, y1, x2, y2), conf), ...]`` keeping only ``class_ids``.
         """
 
+    @abstractmethod
+    def validate(
+        self, data_yaml: str, class_ids: List[int], split: str = "val"
+    ) -> dict:
+        """Evaluate on the ``split`` (``"train"`` or ``"val"``) of a YOLO ``data.yaml``.
+
+        Returns ``{"map_50", "map_50_95", "preds", "targets"}``; ``preds`` and
+        ``targets`` are the per-image torchmetrics-style dicts used for the mAP.
+        """
+
 
 class BaseTrainer(ABC):
     """Training interface every fine-tunable detector must implement.
