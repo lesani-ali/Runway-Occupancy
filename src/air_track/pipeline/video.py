@@ -67,33 +67,39 @@ def process_video(
         task = progress.add_task("Processing frames", total=pbar_total)
 
         while cap.isOpened():
+            # Skipped frames are only grabbed (no retrieve/convert to BGR)
+            if frame_index % stride != 0:
+                if not cap.grab():
+                    break
+                frame_index += 1
+                continue
+
             ok, frame = cap.read()
             if not ok:
                 break
 
-            if frame_index % stride == 0:
-                frame_for_det = frame
-                if roi is not None and roi_cfg.mask_frame:
-                    frame_for_det = apply_roi_mask(frame, roi)
+            frame_for_det = frame
+            if roi is not None and roi_cfg.mask_frame:
+                frame_for_det = apply_roi_mask(frame, roi)
 
-                dets = detector.predict(frame_for_det, class_ids)
+            dets = detector.predict(frame_for_det, class_ids)
 
-                times.append(frame_index / fps)
-                sampled_dets.append(dets)
+            times.append(frame_index / fps)
+            sampled_dets.append(dets)
 
-                if out_cfg.save_img and save_dir is not None:
-                    _save_annotated_frame(
-                        frame, dets, processed, save_dir, out_cfg.hide_conf
-                    )
+            if out_cfg.save_img and save_dir is not None:
+                _save_annotated_frame(
+                    frame, dets, processed, save_dir, out_cfg.hide_conf
+                )
 
-                processed += 1
-                progress.update(task, advance=1)
+            processed += 1
+            progress.update(task, advance=1)
 
-                if (
-                    vid_cfg.max_frames is not None
-                    and processed >= vid_cfg.max_frames
-                ):
-                    break
+            if (
+                vid_cfg.max_frames is not None
+                and processed >= vid_cfg.max_frames
+            ):
+                break
 
             frame_index += 1
 
