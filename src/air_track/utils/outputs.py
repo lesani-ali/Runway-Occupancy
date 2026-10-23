@@ -1,9 +1,12 @@
 import numpy as np
-import matplotlib.pyplot as plt
+import matplotlib
+
+matplotlib.use("Agg")  # files only, no GUI
+import matplotlib.pyplot as plt  # noqa: E402
 import matplotlib.patches as mpatches
 import matplotlib.ticker as ticker
 from pathlib import Path
-from typing import Optional, List
+from typing import List
 from rich.progress import (
     Progress,
     BarColumn,
@@ -25,54 +28,50 @@ from air_track.logging import get_logger, get_console
 logger = get_logger(__name__)
 
 
-def save_episode_summary(out_path: Path, episodes: List) -> None:
-    """Write the episode summary table to a plain-text file."""
-    tbl = Table(title="Episode Summary", show_header=True)
-    tbl.add_column("Episode", justify="center")
-    tbl.add_column("Start", justify="right")
-    tbl.add_column("End", justify="right")
-    tbl.add_column("ROT", justify="right")
+def episode_table(episodes: List, title: str = "Episode Summary") -> Table:
+    """Rich table of episodes (shared by console and file output)."""
+    tbl = Table(title=title, show_header=True, header_style="bold cyan")
+    for col in ("Episode", "Track", "Type", "Start", "End", "ROT"):
+        tbl.add_column(col, justify="right")
     for ep in episodes:
         tbl.add_row(
             str(ep.episode_id),
+            str(ep.track_id),
+            ep.action_type,
             hms(ep.start_sec),
             hms(ep.end_sec),
-            hms(ep.rot_seconds),
+            f"{ep.rot_seconds:.1f} s",
         )
+    return tbl
 
+
+def save_episode_summary(out_path: Path, episodes: List) -> None:
+    """Write the episode summary table to a plain-text file."""
     out_path.parent.mkdir(parents=True, exist_ok=True)
     with out_path.open("w", encoding="utf-8") as f:
-        _FileConsole(file=f, no_color=True, highlight=False, width=60).print(
-            tbl
+        _FileConsole(file=f, no_color=True, highlight=False, width=80).print(
+            episode_table(episodes)
         )
 
 
-def save_csv(
-    out_path: Path,
-    times_sec: np.ndarray,
-    presence: np.ndarray,
-    episode_labels: np.ndarray,
-) -> None:
-    """Save per-frame presence and episode labels to CSV."""
+def save_episodes_csv(out_path: Path, episodes: List) -> None:
+    """Save one row per episode to CSV."""
     out_path.parent.mkdir(parents=True, exist_ok=True)
     with out_path.open("w", encoding="utf-8") as f:
-        f.write("time_sec,presence,episode_id\n")
-        for t, p, ep in zip(times_sec, presence, episode_labels):
-            f.write(f"{t:.6f},{int(p)},{int(ep)}\n")
+        f.write("episode_id,track_id,action_type,start_sec,end_sec,rot_sec\n")
+        for ep in episodes:
+            f.write(
+                f"{ep.episode_id},{ep.track_id},{ep.action_type},"
+                f"{ep.start_sec:.3f},{ep.end_sec:.3f},{ep.rot_seconds:.3f}\n"
+            )
 
 
-_EP_COLORS = [
-    "#4e79a7",
-    "#f28e2b",
-    "#e15759",
-    "#76b7b2",
-    "#59a14f",
-    "#edc948",
-    "#b07aa1",
-    "#ff9da7",
-    "#9c755f",
-    "#bab0ac",
-]
+_ACTION_COLORS = {
+    "landing": "#4e79a7",
+    "take-off": "#e15759",
+    "touch-and-go": "#59a14f",
+    "ground": "#9c755f",
+}
 
 
 def _tick_interval(duration_sec: float) -> float:
@@ -90,113 +89,58 @@ def _tick_interval(duration_sec: float) -> float:
     return 600
 
 
-def plot_episode_chart(
-    out_path: Optional[Path],
+def plot_occupancy(
+    out_path: Path,
     times_sec: np.ndarray,
-    presence: np.ndarray,
-    episode_labels: np.ndarray,
     episodes: List,
-    title: str = "Aircraft Episodes",
+    title: str = "Runway Occupancy",
 ) -> None:
-    """
-    Step chart with colour-shaded bands per episode.
-    The trace is coloured per episode; grey where no episode is active.
-    Axis labels are formatted as MM:SS regardless of video length.
-    """
+    """Number of aircraft on the runway over time, with episode bands."""
     times_sec = np.asarray(times_sec)
-    presence = np.asarray(presence)
-    episode_labels = np.asarray(episode_labels)
+    occupancy = np.zeros(len(times_sec), dtype=int)
+    for ep in episodes:
+        occupancy += (times_sec >= ep.start_sec) & (times_sec <= ep.end_sec)
 
     duration = float(times_sec[-1]) if len(times_sec) > 0 else 1.0
     width = float(np.clip(duration / 15, 14, 36))
     fig, ax = plt.subplots(figsize=(width, 4))
 
-    legend_patches = []
-    ep_color_map = {}
-    min_label_width = duration / 20
-
     for ep in episodes:
-        color = _EP_COLORS[(ep.episode_id - 1) % len(_EP_COLORS)]
-        ep_color_map[ep.episode_id] = color
         ax.axvspan(
-            ep.start_sec, ep.end_sec, alpha=0.15, color=color, linewidth=0
+            ep.start_sec,
+            ep.end_sec,
+            alpha=0.2,
+            color=_ACTION_COLORS.get(ep.action_type, "#bab0ac"),
+            linewidth=0,
         )
+    ax.step(times_sec, occupancy, where="post", color="black", linewidth=1)
 
-        dur_str = hms(ep.rot_seconds)
-        band_width = ep.end_sec - ep.start_sec
-        if band_width >= min_label_width:
-            mid = (ep.start_sec + ep.end_sec) / 2
-            ax.text(
-                mid,
-                1.05,
-                f"Ep {ep.episode_id}\n{dur_str}",
-                ha="center",
-                va="bottom",
-                fontsize=7,
-                color=color,
-                fontweight="bold",
-                clip_on=True,
-            )
-        legend_patches.append(
-            mpatches.Patch(
-                color=color, alpha=0.6, label=f"Ep {ep.episode_id} ({dur_str})"
-            )
-        )
-
-    unique_labels = sorted(set(episode_labels))
-    for ep_id in unique_labels:
-        mask = episode_labels == ep_id
-        color = ep_color_map.get(ep_id, "#aaaaaa")
-        lw = 1.5 if ep_id > 0 else 0.8
-        draw_mask = (
-            mask & (presence == 1)
-            if ep_id > 0
-            else mask & presence.astype(bool)
-        )
-        y = np.where(
-            draw_mask, 1.0 if ep_id > 0 else presence.astype(float), np.nan
-        )
-        ax.step(times_sec, y, where="post", color=color, linewidth=lw)
-
-    ax.set_ylim(-0.15, 1.35)
-    ax.set_yticks([0, 1])
-    ax.set_yticklabels(["0 (absent)", "1 (present)"])
-    ax.set_ylabel("Aircraft visible")
+    ax.legend(
+        handles=[
+            mpatches.Patch(color=c, alpha=0.5, label=a)
+            for a, c in _ACTION_COLORS.items()
+        ],
+        loc="upper right",
+        fontsize=7,
+    )
+    ax.set_ylim(-0.1, max(2, int(occupancy.max(initial=0))) + 0.5)
+    ax.yaxis.set_major_locator(ticker.MultipleLocator(1))
+    ax.set_ylabel("Aircraft on runway")
     ax.set_title(title)
 
     tick_step = _tick_interval(duration)
     ax.xaxis.set_major_locator(ticker.MultipleLocator(tick_step))
-    ax.xaxis.set_minor_locator(ticker.MultipleLocator(tick_step / 5))
     ax.xaxis.set_major_formatter(
-        ticker.FuncFormatter(
-            lambda s, _: f"{int(s) // 60:02d}:{int(s) % 60:02d}"
-        )
+        ticker.FuncFormatter(lambda s, _: hms(s))
     )
-    ax.set_xlabel("Time (MM:SS from video start)")
+    ax.set_xlabel("Time (HH:MM:SS from video start)")
     plt.setp(ax.get_xticklabels(), rotation=45, ha="right", fontsize=8)
-
-    ax.grid(
-        True, which="major", axis="x", linestyle="--", linewidth=0.4, alpha=0.6
-    )
-    ax.grid(
-        True, which="minor", axis="x", linestyle=":", linewidth=0.2, alpha=0.3
-    )
-
-    if legend_patches:
-        ax.legend(
-            handles=legend_patches,
-            loc="upper right",
-            fontsize=7,
-            ncol=max(1, len(legend_patches) // 4),
-        )
+    ax.grid(True, axis="x", linestyle="--", linewidth=0.4, alpha=0.6)
 
     plt.tight_layout()
-    if out_path is not None:
-        out_path.parent.mkdir(parents=True, exist_ok=True)
-        plt.savefig(out_path, dpi=150, bbox_inches="tight")
-    else:
-        plt.show()
-    plt.close()
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    plt.savefig(out_path, dpi=150, bbox_inches="tight")
+    plt.close(fig)
 
 
 def generate_video(input_folder: str, output_video: str, fps: int = 30) -> None:

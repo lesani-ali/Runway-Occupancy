@@ -1,31 +1,28 @@
 from __future__ import annotations
 
-import csv
 import json
 import math
 from io import StringIO
 from pathlib import Path
-from dataclasses import dataclass
-from typing import List, Literal
+from pydantic import BaseModel
+from typing import List
 
 import numpy as np
 from rich.console import Console as _FileConsole
 from rich.table import Table
 
-from air_track.tracking.episode_machine import Episode
+from air_track.tracking.rot import Episode
 from air_track.logging import get_logger, get_console
 
 logger = get_logger(__name__)
 
 
-@dataclass
-class GTEpisode:
+class GTEpisode(BaseModel):
     episode_id: int
     start_sec: float
     end_sec: float
-    action_type: Literal["take-off", "landing", "touch-and-go"] | None = None
+    action_type: str | None = None
     note: str | None = None
-
 
     @property
     def rot_seconds(self) -> float:
@@ -43,22 +40,6 @@ def _parse_time(value: str) -> float:
         m, s = parts
         return int(m) * 60 + float(s)
     return float(value)
-
-
-def load_ground_truth_CSV(path: str | Path) -> List[GTEpisode]:
-    """Load ground-truth episodes from a CSV file."""
-    path = Path(path)
-    episodes: List[GTEpisode] = []
-    with path.open(encoding="utf-8") as fh:
-        for row in csv.DictReader(fh):
-            ep = GTEpisode(
-                episode_id=int(row["episode_id"]),
-                start_sec=_parse_time(row["start_time"]),
-                end_sec=_parse_time(row["end_time"]),
-                note=row.get("note"),
-            )
-            episodes.append(ep)
-    return sorted(episodes, key=lambda e: e.start_sec)
 
 
 def load_ground_truth_JSON(path: str | Path) -> List[GTEpisode]:
@@ -143,6 +124,7 @@ class Evaluator:
         tbl.add_row("Mean Rel. ROT Err",  _fp(results["mean_rel_rot_err_pct"]))
         tbl.add_row("Mean Start Error",   _fs(results["mean_start_err_sec"]))
         tbl.add_row("Mean End Error",     _fs(results["mean_end_err_sec"]))
+        tbl.add_row("Action Accuracy",    _fp(results["action_acc"] * 100))
         return tbl
 
     def _greedy_match(
@@ -191,6 +173,7 @@ class Evaluator:
                 mae_sec=nan, rmse_sec=nan,
                 mean_rot_err_sec=nan, mean_rel_rot_err_pct=nan,
                 mean_start_err_sec=nan, mean_end_err_sec=nan,
+                action_acc=nan,
             )
 
         tious, rot_errs, abs_errs, rel_errs, start_errs, end_errs = [], [], [], [], [], []
@@ -213,4 +196,7 @@ class Evaluator:
             mean_rel_rot_err_pct=float(np.mean(rel_errs)) if rel_errs else nan,
             mean_start_err_sec=float(np.mean(start_errs)),
             mean_end_err_sec=float(np.mean(end_errs)),
+            action_acc=float(np.mean(
+                [pred.action_type == gt.action_type for pred, gt, _ in matches]
+            )),
         )

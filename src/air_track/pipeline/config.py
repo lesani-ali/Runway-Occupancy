@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import yaml
 from pathlib import Path
-from typing import List, Literal, Optional
-from pydantic import BaseModel, Field, model_validator
+from typing import Any, Dict, List, Literal, Optional
+from pydantic import BaseModel, Field
 
 
 class VideoConfig(BaseModel):
@@ -27,28 +27,22 @@ class ModelConfig(BaseModel):
 
 
 class RoiConfig(BaseModel):
-    polygon: Optional[List[List[int]]] = None
+    polygon: List[List[float]]  # runway surface, [x, y] vertices
     mask_frame: bool = False
 
 
 class TrackingConfig(BaseModel):
-    # IDLE → ACTIVE trigger
-    start_conf: float = 0.5
-    start_streak_k: int = 3
-    start_streak_n: int = 5
+    tracker: str = "bytetrack"  # module name in air_track/tracking/
+    params: Dict[str, Any] = Field(default_factory=dict)
 
-    # ACTIVE keep-alive
-    keep_conf: float = 0.4
-    gate_px: float = 500.0
-    max_pos_uncertainty: float = 5000.0
 
-    # LOST recovery
-    recover_conf: float = 0.5
-    lost_timeout: int = 30
-
-    # Kalman filter
-    process_var: float = 70.0
-    meas_var: float = 100.0
+class RotConfig(BaseModel):
+    ref_point: Literal["bottom", "center"] = "bottom"
+    air_height_ratio: float = 8.0
+    min_run_frames: int = 3
+    max_off_gap_sec: float = 2.0
+    min_track_frames: int = 5
+    min_displacement_px: float = 100.0
 
 
 class OutputsConfig(BaseModel):
@@ -74,8 +68,9 @@ class Config(BaseModel):
     package_name: str = "air_track"
     video: VideoConfig = Field(default_factory=VideoConfig)
     model: ModelConfig = Field(default_factory=ModelConfig)
-    roi: RoiConfig = Field(default_factory=RoiConfig)
+    roi: RoiConfig
     tracking: TrackingConfig = Field(default_factory=TrackingConfig)
+    rot: RotConfig = Field(default_factory=RotConfig)
     outputs: OutputsConfig = Field(default_factory=OutputsConfig)
     evaluation: EvaluationConfig = Field(default_factory=EvaluationConfig)
     logging: LoggingConfig = Field(default_factory=LoggingConfig)

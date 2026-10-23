@@ -6,23 +6,23 @@ video:
 # Model
 model:
   family: "torchvision"      # "torchvision" or "ultralytics"
-  checkpoint: "fasterrcnn_resnet50_fpn"
+  checkpoint: "./runs/Fast-RCNN2/best.pt"
   device: "cuda:0"
-  conf: 0.3                  # base detection confidence (pre-filter)
+  conf: 0.85                  # base detection confidence (pre-filter)
 
   # SAHI slicing
   use_sahi: true
-  slice_width: 650
-  slice_height: 650
+  slice_width: 640
+  slice_height: 640
   overlap_ratio: 0.2
 
   # Airplane class ids (COCO: airplane = 5); For YOLO pretrained on COCO, use 4. For a model fine-tuned on your single "aircraft" class, usually 0.
-  airplane_class_ids: [5]
+  airplane_class_ids: [1]
 
 # Region of Interest
 roi:
-  polygon:                   # null = full frame; list of [x,y] points = polygon
-    - [774, 0]
+  polygon:                   # runway surface (on-the-ground area), list of [x, y] points
+    - [871, 879]
     - [872, 893]
     - [1027, 885]
     - [1176, 878]
@@ -38,8 +38,13 @@ roi:
     - [4511, 869]
     - [4618, 878]
     - [4716, 888]
-    - [4779, 898]
-    - [5131, 917]
+    - [4778, 898]
+    - [4853, 914]
+    - [4875, 929]
+    - [4866, 937]
+    - [5309, 965]
+    - [5201, 935]
+    - [5133, 917]
     - [5114, 912]
     - [5107, 907]
     - [5118, 904]
@@ -59,56 +64,84 @@ roi:
     - [7106, 1024]
     - [7150, 1028]
     - [7192, 1034]
-    - [7237, 1040]
-    - [7302, 1049]
-    - [7342, 1054]
-    - [7435, 1063]
-    - [7370, 1053]
-    - [7321, 1045]
-    - [7270, 1039]
+    - [7249, 1044]
+    - [7321, 1055]
+    - [7394, 1065]
+    - [7447, 1062]
+    - [7375, 1049]
+    - [7323, 1042]
+    - [7278, 1037]
     - [7240, 1034]
-    - [7304, 1038]
-    - [7484, 1049]
-    - [7589, 1056]
-    - [7635, 1060]
-    - [7673, 1063]
-    - [7711, 1068]
-    - [7752, 1073]
-    - [7787, 1076]
-    - [7821, 1081]
-    - [7842, 1085]
-    - [7881, 1086]
+    - [7307, 1038]
+    - [7484, 1050]
+    - [7589, 1057]
+    - [7636, 1061]
+    - [7675, 1064]
+    - [7710, 1069]
+    - [7753, 1076]
+    - [7788, 1081]
+    - [7813, 1075]
+    - [7726, 1062]
+    - [7647, 1053]
+    - [7612, 1049]
+    - [7471, 1038]
+    - [7358, 1030]
+    - [7158, 1015]
+    - [6959, 1000]
+    - [6773, 984]
+    - [6516, 965]
+    - [6294, 950]
+    - [6061, 934]
+    - [5790, 916]
+    - [5525, 898]
+    - [5237, 879]
+    - [5004, 866]
+    - [4805, 857]
+    - [4477, 842]
+    - [4242, 832]
+    - [4060, 828]
+    - [3709, 820]
+    - [3564, 817]
+    - [3266, 813]
+    - [3036, 813]
+    - [2630, 815]
+    - [2241, 823]
+    - [1891, 833]
+    - [1649, 841]
+    - [1508, 849]
+    - [1377, 854]
+    - [1241, 862]
+    - [1145, 866]
+    - [1052, 872]
 
   mask_frame: false          # if true, zero-out pixels outside ROI before detection
 
-# Episode tracking
+# Multi-object tracking (any tracker in air_track/tracking/<name>.py)
 tracking:
-  # IDLE → ACTIVE (start trigger)
-  start_conf: 0.5            # min conf to count as a "strong" detection
-  start_streak_k: 3          # K detections needed out of last N frames
-  start_streak_n: 5          # N-frame sliding window
+  tracker: "bytetrack"
+  params:                      # passed as-is to the tracker (sv.ByteTrack)
+    track_activation_threshold: 0.8 
+    lost_track_buffer: 60      # in 30-fps frames (30 = 1 s), rescaled to the sampled rate
+    minimum_matching_threshold: 0.8
+    minimum_consecutive_frames: 3
 
-  # ACTIVE keep-alive
-  keep_conf: 0.4             # min conf for a detection to maintain episode
-  gate_px: 500               # max px distance from Kalman prediction (gating)
-  max_pos_uncertainty: 5000.0  # max Kalman P-trace; above this, prediction ignored
-
-  # LOST recovery
-  recover_conf: 0.5          # min conf to recover from LOST → ACTIVE
-  lost_timeout: 30           # sampled-frames of total miss before episode closes
-
-  # Kalman filter
-  process_var: 70.0          # process noise variance
-  meas_var: 100.0            # measurement noise variance
+# Runway occupancy time (ROT) extraction
+rot:
+  ref_point: "bottom"          # box point tested against the ROI: "bottom" or "center"
+  air_height_ratio: 2.0        # airspace above the ROI counted as "over the runway", in aircraft box heights
+  min_run_frames: 3            # zone must hold this many sampled frames to count
+  max_off_gap_sec: 1.0         # OFF gaps this short inside a track do not split an episode
+  min_track_frames: 32         # shorter tracks are dropped
+  min_displacement_px: 100     # tracks that move less are dropped (parked aircraft)
 
 # Outputs
 outputs:
   output_dir: "./data/rot/outputs/"
-  save_csv: true
-  save_plot: true
+  save_csv: true             # episodes.csv
+  save_plot: true            # occupancy.png
   save_img: true
   hide_conf: false
-  generate_video: false
+  generate_video: true
 
 # Evaluation
 evaluation:
