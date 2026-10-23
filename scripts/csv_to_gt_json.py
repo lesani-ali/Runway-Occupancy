@@ -23,6 +23,18 @@ ACTION_MAP = {
     "touch-and-go": "touch-and-go",
 }
 
+SPLIT_MAP = {
+    "train": "train",
+    "Train": "train",
+    "training": "train",
+    "val": "val",
+    "validation": "val",
+    "Validation": "val",
+    "test": "test",
+    "Test": "test",
+    "testing": "test",
+}
+
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
@@ -79,8 +91,6 @@ def _resolve_headers(fieldnames: list[str]) -> dict[str, str]:
         raise ValueError(f"Missing required column(s): {missing_text}")
 
     return resolved
-
-
 
 
 def _parse_time(value: str, three_part_format: str | None=None) -> float:
@@ -141,6 +151,9 @@ def convert_csv_to_gt_json(input_csv: Path, three_part_format: str) -> list[dict
                     "end_time": _parse_time(raw_end, three_part_format),
                     "action_type": _normalize_action_type(
                         row.get(headers.get("action_type", ""))
+                    ),
+                    "split": SPLIT_MAP.get(
+                        (row.get("split") or "").strip(), ""
                     ),
                     "note": (row.get(headers.get("note", "")) or "").strip(),
                 }
