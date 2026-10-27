@@ -9,7 +9,12 @@ from air_track.pipeline.config import Config
 from air_track.pipeline.video import process_video
 from air_track.pipeline.cache import save_detections, load_detections
 from air_track.pipeline.evaluation import Evaluator, load_ground_truth_JSON
-from air_track.tracking import extract_episodes, get_tracker, run_tracker
+from air_track.tracking import (
+    extract_episodes,
+    get_tracker,
+    run_tracker,
+    stitch_tracks,
+)
 from air_track.utils.outputs import (
     save_config,
     save_episodes_csv,
@@ -117,6 +122,11 @@ def run(config_path, source, gt_path, detections_path) -> None:
     tracker = get_tracker(trk_cfg.tracker)(frame_rate, **trk_cfg.params)
     tracks = run_tracker(tracker, sampled_dets)
     logger.info(f"{len(tracks)} tracks from '{trk_cfg.tracker}'")
+    tracks = stitch_tracks(
+        tracks, times_sec,
+        trk_cfg.stitch_max_gap_sec, trk_cfg.stitch_max_dist_ratio,
+    )
+    logger.info(f"{len(tracks)} tracks after stitching")
     episodes = extract_episodes(tracks, times_sec, cfg.roi.polygon, cfg.rot)
 
     _save_outputs(episodes, save_dir, times_sec, fps, img_save_dir, out_cfg)

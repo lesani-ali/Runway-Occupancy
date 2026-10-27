@@ -34,6 +34,8 @@ class RoiConfig(BaseModel):
 class TrackingConfig(BaseModel):
     tracker: str = "bytetrack"  # module name in air_track/tracking/
     params: Dict[str, Any] = Field(default_factory=dict)
+    stitch_max_gap_sec: float = 3.0
+    stitch_max_dist_ratio: float = 3.0
 
 
 class RotConfig(BaseModel):
