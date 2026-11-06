@@ -4,7 +4,7 @@
 # Class count and names are read from the data.yaml.
 
 # ---- YOLO-format data ----
-data_yaml: "./data/model_train/data-final/data.yaml"   # train/val image dirs + class names
+data_yaml: "./data/model_train/NavCanada-final3/data.yaml"   # train/val image dirs + class names
 
 # ---- Which detector to fine-tune ----
 family: "torchvision"
@@ -12,15 +12,15 @@ weights: "retinanet_resnet50_fpn"
 device: "cuda:0"
 
 # ---- Training schedule (SGD + StepLR) ----
-# torchvision's reference recipe is lr 0.01 at batch 16; scaled linearly to batch 4.
-# RetinaNet's focal loss is less stable than Faster R-CNN, hence half its LR.
 epochs: 50
 batch_size: 4
 lr: 0.0025
 momentum: 0.9
+grad_clip_norm: 10.0   # cap the gradient norm so one bad batch can't blow up the weights
 weight_decay: 0.0001   # torchvision RetinaNet reference value
 lr_step_size: 35       # one 10x drop late in training
 lr_gamma: 0.1
+warmup_epochs: 3       # linear LR ramp from 0.1% of lr (matches YOLO's 3 warmup epochs)
 workers: 4
 seed: 0
 
@@ -28,9 +28,10 @@ seed: 0
 hflip_prob: 0.5        # random horizontal flip (train split only)
 
 # ---- Anchors ----
-# Custom anchor aspect ratios are Faster R-CNN only; RetinaNet keeps its defaults.
-anchor_aspect_ratios: null
+# Base anchor size per FPN level (P3-P7); each gets 3 octave scales (x, x*2^1/3, x*2^2/3).
+anchor_sizes: [16, 32, 64, 128, 256]
+anchor_aspect_ratios: [0.33, 0.5, 1.0]
 
 # ---- Output ----
 output_dir: "runs"
-run_name: "retinanet"  # weights land in runs/retinanet/best.pt
+run_name: "retinanet3"  # weights land in runs/retinanet2/best.pt

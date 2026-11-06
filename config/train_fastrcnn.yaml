@@ -1,41 +1,39 @@
-# Fine-tuning config.  Run with:  air-track-train -c config/train.yaml
+# Faster R-CNN fine-tuning config.  Run with:  air-track-train -c config/train_fastrcnn.yaml
 #
 # The dataset must be in YOLO detection format (images/ + labels/ + data.yaml).
 # Class count and names are read from the data.yaml.
 # For YOLO training first install support:  pip install -e ".[yolo]"
 
 # ---- YOLO-format data ----
-data_yaml: "./data/model_train/data-final/data.yaml"   # train/val image dirs + class names
+data_yaml: "./data/model_train/NavCanada-final3/data.yaml"   # train/val image dirs + class names
 
 # ---- Which detector to fine-tune ----
-family: "torchvision"                 # "torchvision" (Faster R-CNN / RetinaNet) or "ultralytics" (YOLO)
-weights: "fasterrcnn_resnet50_fpn"    # torchvision model name, OR a YOLO .pt (e.g. yolo11n.pt) when family=ultralytics
+family: "torchvision"                 
+weights: "fasterrcnn_resnet50_fpn"
 device: "cuda:0"
 
 # ---- Training schedule ----
-# For YOLO (family=ultralytics) use batch_size 16; its optimizer and LR are chosen automatically.
-# For torchvision (family=torchvision): batch_size 4, lr 0.005, momentum 0.9
 epochs: 50
 batch_size: 4
-lr: 0.005              # torchvision (SGD)
-momentum: 0.9          # torchvision (SGD)
-weight_decay: 0.0005   # torchvision (SGD)
+lr: 0.005             
+momentum: 0.9         
+weight_decay: 0.0005  
+grad_clip_norm: null   # cap the gradient norm so one bad batch can't blow up the weights
 lr_step_size: 35       # torchvision (StepLR) — one 10x drop late in training
 lr_gamma: 0.1          # torchvision (StepLR)
+warmup_epochs: 3       # linear LR ramp from 0.1% of lr (matches YOLO's 3 warmup epochs)
 workers: 4
 seed: 0
 
 # ---- Augmentation ----
 hflip_prob: 0.5        # random horizontal flip (train split only)
 
-# ---- Faster R-CNN only ----
-# RPN anchor aspect ratios (h/w). Aircraft boxes are ~3:1 wide (median h/w 0.375),
-# so 2.0 (tall) is swapped for 0.33. Set to null for torchvision defaults [0.5, 1.0, 2.0].
+# ---- Anchors ----
+# One RPN anchor size per FPN level (P2-P6).
+anchor_sizes: [16, 32, 64, 128, 256]
+# Aspect ratios (h/w).
 anchor_aspect_ratios: [0.33, 0.5, 1.0]
-
-# ---- Ultralytics-only ----
-img_size: 640
 
 # ---- Output ----
 output_dir: "runs"
-run_name: "Fast-RCNN"
+run_name: "Fast-RCNN6"
