@@ -32,6 +32,6 @@ class UltralyticsTrainer(BaseTrainer):
             name=cfg.run_name,
             seed=cfg.seed,
         )
-        best = Path(cfg.output_dir) / cfg.run_name / "weights" / "best.pt"
+        best = Path(model.trainer.save_dir) / "weights" / "best.pt"
         logger.info(f"YOLO training complete. Best weights at {best}")
         return best
