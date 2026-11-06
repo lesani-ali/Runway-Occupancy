@@ -40,10 +40,14 @@ class TorchvisionTrainer(BaseTrainer):
         self.model = build_torchvision_model(
             cfg.weights,
             self.train_ds.num_fg_classes,
+            anchor_sizes=cfg.anchor_sizes,
             anchor_aspect_ratios=cfg.anchor_aspect_ratios,
         ).to(self.device)
         self.optimizer = self.build_optimizer(self.model, cfg)
         self.scheduler = self.build_scheduler(self.optimizer, cfg)
+        self.warmup = self.build_warmup(
+            self.optimizer, cfg, len(self.train_loader)
+        )
 
         self.out_dir = Path(cfg.output_dir) / cfg.run_name
         self.meta = self.build_metadata(cfg, self.train_ds)
@@ -55,6 +59,7 @@ class TorchvisionTrainer(BaseTrainer):
 
     def _train(self) -> Path:
         self.out_dir.mkdir(parents=True, exist_ok=True)
+        self.cfg.save_yaml(self.out_dir / "train_config.yaml")
 
         logger.info(
             f"Train images: {len(self.train_ds)} | "
@@ -119,13 +124,28 @@ class TorchvisionTrainer(BaseTrainer):
 
         for images, targets in self.train_loader:
             images, targets = self._move_to_device(images, targets)
+            
+            self.optimizer.zero_grad()
 
+            # 1. Forward pass
             loss_dict = self.model(images, targets)
             loss = sum(loss_dict.values())
 
-            self.optimizer.zero_grad()
+            # 2. Calculate gradients
             loss.backward()
+
+            # 3. Clip gradients
+            if self.cfg.grad_clip_norm:
+                torch.nn.utils.clip_grad_norm_(
+                    self.model.parameters(), self.cfg.grad_clip_norm
+                )
+
+            # 4. Update model weights
             self.optimizer.step()
+
+            # 5. Update warmup
+            if self.warmup is not None:
+                self.warmup.step()
 
             running_loss += loss.item()
 
@@ -236,6 +256,17 @@ class TorchvisionTrainer(BaseTrainer):
         )
 
     @staticmethod
+    def build_warmup(optimizer, cfg, iters_per_epoch):
+        if not cfg.warmup_epochs:
+            return None
+        total_iters = int(cfg.warmup_epochs * iters_per_epoch)
+        if total_iters <= 0:
+            return None
+        return torch.optim.lr_scheduler.LinearLR(
+            optimizer, start_factor=0.001, total_iters=total_iters
+        )
+
+    @staticmethod
     def _resolve_device(device: str) -> torch.device:
         if device.startswith("cuda") and not torch.cuda.is_available():
             logger.warning("CUDA not available; falling back to CPU.")
@@ -249,5 +280,6 @@ class TorchvisionTrainer(BaseTrainer):
             "num_fg_classes": train_ds.num_fg_classes,
             "class_names": train_ds.class_names,
             "label_offset": train_ds.label_offset,
+            "anchor_sizes": cfg.anchor_sizes,
             "anchor_aspect_ratios": cfg.anchor_aspect_ratios,
         }

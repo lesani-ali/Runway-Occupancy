@@ -168,6 +168,7 @@ def _load_checkpoint(checkpoint: str):
         weights_name,
         num_fg,
         pretrained=False,
+        anchor_sizes=ckpt.get("anchor_sizes"),
         anchor_aspect_ratios=ckpt.get("anchor_aspect_ratios"),
     )
     model.load_state_dict(state)

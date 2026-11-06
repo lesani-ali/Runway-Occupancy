@@ -22,13 +22,17 @@ class TrainConfig(BaseModel):
     weight_decay: float = 5e-4     # torchvision SGD
     lr_step_size: int = 20         # torchvision StepLR
     lr_gamma: float = 0.1          # torchvision StepLR
+    warmup_epochs: Optional[float] = None   # torchvision linear LR warmup; None disables
+    grad_clip_norm: Optional[float] = None  # torchvision; None disables
     workers: int = 4
     seed: int = 0
 
     # Augmentation
     hflip_prob: float = 0.5
 
-    # Faster R-CNN only: RPN anchor aspect ratios (h/w); None = torchvision's
+    # Torchvision anchors; None = torchvision's defaults.
+    # Base size per FPN level (5 values, smallest first) and aspect ratios (h/w).
+    anchor_sizes: Optional[List[int]] = None
     anchor_aspect_ratios: Optional[List[float]] = None
 
     # Ultralytics-only
@@ -48,3 +52,8 @@ class TrainConfig(BaseModel):
         with p.open("r", encoding="utf-8") as fh:
             data = yaml.safe_load(fh) or {}
         return cls.model_validate(data)
+
+    def save_yaml(self, path) -> None:
+        """Write the resolved config (YAML values + defaults) for the run record."""
+        with Path(path).open("w", encoding="utf-8") as fh:
+            yaml.safe_dump(self.model_dump(), fh, sort_keys=False)
