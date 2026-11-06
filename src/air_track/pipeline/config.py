@@ -29,6 +29,7 @@ class ModelConfig(BaseModel):
 class RoiConfig(BaseModel):
     polygon: List[List[float]]  # runway surface, [x, y] vertices
     mask_frame: bool = False
+    drift_every_sec: float = 0.0  # re-fit ROI to camera drift; 0 = static camera
 
 
 class TrackingConfig(BaseModel):
@@ -41,7 +42,7 @@ class TrackingConfig(BaseModel):
 class RotConfig(BaseModel):
     ref_point: Literal["bottom", "center"] = "bottom"
     air_height_ratio: float = 8.0
-    min_run_frames: int = 3
+    min_segment_frames: int = 3
     max_off_gap_sec: float = 2.0
     min_track_frames: int = 5
     min_displacement_px: float = 100.0

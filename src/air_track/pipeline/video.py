@@ -11,14 +11,18 @@ from rich.progress import (
     Progress,
     TextColumn,
     TimeRemainingColumn,
+    track,
 )
 
 from air_track.detectors import get_detector
 from air_track.logging import get_console, get_logger
-from air_track.tracking.geometry import Detection
+from air_track.tracking.geometry import Detection, Polygon
 from air_track.utils.preprocessing import apply_roi_mask
 
 logger = get_logger(__name__)
+
+DRIFT_PATCH_W, DRIFT_PATCH_H = 512, 256  # image patch around each ROI corner
+DRIFT_MIN_CONF = 0.2  # weaker phase-correlation peaks (e.g. a passing aircraft) are ignored
 
 
 def process_video(
@@ -135,3 +139,64 @@ def _save_annotated_frame(
                 2,
             )
     cv2.imwrite(str(save_dir / f"img_{frame_num + 1}.jpg"), vis)
+
+
+def roi_per_frame(
+    video_path: str,
+    polygon: Polygon,
+    times_sec: np.ndarray,
+    every_sec: float,
+) -> List[Polygon]:
+    """ROI for each sampled frame, following slow camera drift.
+
+    Every `every_sec` seconds each polygon corner moves down/up by how much the
+    image around it shifted since the first frame (phase correlation). The shift
+    differs along the runway, so corners move separately. 0 = static camera.
+    """
+    if not every_sec:
+        return [polygon] * len(times_sec)
+
+    cap = cv2.VideoCapture(video_path)
+    if not cap.isOpened():
+        raise FileNotFoundError(f"Cannot open video: {video_path}")
+    fps = cap.get(cv2.CAP_PROP_FPS) or 30.0
+
+    def gray(sec: float) -> Optional[np.ndarray]:
+        cap.set(cv2.CAP_PROP_POS_FRAMES, round(sec * fps))
+        ok, frame = cap.read()
+        return cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY).astype(np.float32) if ok else None
+
+    ref = gray(0.0)
+    img_h, img_w = ref.shape
+    window = cv2.createHanningWindow((DRIFT_PATCH_W, DRIFT_PATCH_H), cv2.CV_32F)
+    # Top-left corner of the patch around each polygon vertex, kept inside the image
+    patches = [
+        (int(np.clip(x - DRIFT_PATCH_W / 2, 0, img_w - DRIFT_PATCH_W)),
+         int(np.clip(y - DRIFT_PATCH_H / 2, 0, img_h - DRIFT_PATCH_H)))
+        for x, y in polygon
+    ]
+
+    # Only the sample times the frames actually need
+    keys = np.round(np.asarray(times_sec) / every_sec).astype(int)
+    shifts = np.zeros(len(polygon))
+    rois = {}
+    for key in track(
+        np.unique(keys), "Measuring camera drift", console=get_console()
+    ):
+        img = gray(key * every_sec)
+        for i, (x, y) in enumerate(patches):
+            if img is None:
+                break
+            # Copies: phaseCorrelate writes the windowed patch back into a slice
+            (_, dy), conf = cv2.phaseCorrelate(
+                ref[y:y + DRIFT_PATCH_H, x:x + DRIFT_PATCH_W].copy(),
+                img[y:y + DRIFT_PATCH_H, x:x + DRIFT_PATCH_W].copy(),
+                window,
+            )
+            if conf >= DRIFT_MIN_CONF:  # otherwise keep the last good shift
+                shifts[i] = dy
+        rois[key] = [(x, y + dy) for (x, y), dy in zip(polygon, shifts)]
+    cap.release()
+
+    logger.info(f"ROI corners moved {shifts.min():+.1f} to {shifts.max():+.1f} px by the last frame")
+    return [rois[key] for key in keys]

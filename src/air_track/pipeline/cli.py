@@ -6,7 +6,7 @@ from pathlib import Path
 import click
 
 from air_track.pipeline.config import Config
-from air_track.pipeline.video import process_video
+from air_track.pipeline.video import process_video, roi_per_frame
 from air_track.pipeline.cache import save_detections, load_detections
 from air_track.pipeline.evaluation import Evaluator, load_ground_truth_JSON
 from air_track.tracking import (
@@ -122,17 +122,25 @@ def run(config_path, source, gt_path, detections_path) -> None:
     tracker = get_tracker(trk_cfg.tracker)(frame_rate, **trk_cfg.params)
     tracks = run_tracker(tracker, sampled_dets)
     logger.info(f"{len(tracks)} tracks from '{trk_cfg.tracker}'")
-    tracks = stitch_tracks(
-        tracks, times_sec,
-        trk_cfg.stitch_max_gap_sec, trk_cfg.stitch_max_dist_ratio,
-    )
+    # tracks = stitch_tracks(
+    #     tracks, times_sec,
+    #     trk_cfg.stitch_max_gap_sec, trk_cfg.stitch_max_dist_ratio,
+    # )
     logger.info(f"{len(tracks)} tracks after stitching")
-    episodes = extract_episodes(tracks, times_sec, cfg.roi.polygon, cfg.rot)
 
+    # Define regions of interest for each frame
+    rois = roi_per_frame(
+        source, cfg.roi.polygon, times_sec, cfg.roi.drift_every_sec
+    )
+
+    # Extract runway-occupancy episodes from tracks
+    episodes = extract_episodes(tracks, times_sec, rois, cfg.rot)
+
+    # Save outputs
     _save_outputs(episodes, save_dir, times_sec, fps, img_save_dir, out_cfg)
-
     save_config(save_dir / "config.json", cfg)
 
+    # Evaluate against ground truth if provided
     if gt_path:
         logger.info("Running evaluation …")
         evaluator = Evaluator(cfg.evaluation.iou_threshold)

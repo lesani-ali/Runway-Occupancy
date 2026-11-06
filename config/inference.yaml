@@ -6,7 +6,7 @@ video:
 # Model
 model:
   family: "torchvision"      # "torchvision" or "ultralytics"
-  checkpoint: "./runs/Fast-RCNN2/best.pt"
+  checkpoint: "./runs/Fast-RCNN5/best.pt"
   device: "cuda:0"
   conf: 0.85                  # base detection confidence (pre-filter)
 
@@ -22,61 +22,61 @@ model:
 # Region of Interest
 roi:
   polygon:                   # runway surface (on-the-ground area), list of [x, y] points
-    - [1454, 879]
-    - [1971, 861]
-    - [2291, 854]
-    - [2525, 852]
-    - [2950, 851]
-    - [3452, 855]
-    - [3879, 861]
-    - [4365, 875]
-    - [4471, 879]
-    - [4601, 886]
-    - [4704, 892]
+    - [1494, 873]
+    - [1988, 860]
+    - [2293, 854]
+    - [2529, 851]
+    - [2962, 848]
+    - [3465, 853]
+    - [3890, 861]
+    - [4349, 876]
+    - [4467, 879]
+    - [4593, 885]
+    - [4689, 890]
     - [4778, 898]
     - [4853, 914]
     - [4875, 929]
     - [4866, 937]
     - [5309, 965]
-    - [5201, 935]
-    - [5157, 924]
-    - [5149, 920]
-    - [5134, 914]
-    - [5133, 910]
-    - [5186, 913]
-    - [5258, 913]
-    - [5327, 918]
-    - [5432, 925]
-    - [5771, 947]
-    - [6138, 966]
-    - [6389, 981]
-    - [6598, 996]
-    - [6691, 1002]
-    - [6807, 1011]
-    - [6910, 1018]
-    - [6987, 1024]
-    - [7056, 1027]
-    - [7098, 1031]
-    - [7140, 1036]
-    - [7180, 1041]
-    - [7247, 1050]
-    - [7322, 1059]
-    - [7379, 1064]
-    - [7464, 1064]
-    - [7375, 1049]
-    - [7323, 1042]
-    - [7281, 1038]
-    - [7324, 1041]
-    - [7482, 1053]
-    - [7587, 1059]
-    - [7634, 1064]
+    - [5246, 946]
+    - [5164, 928]
+    - [5146, 922]
+    - [5121, 912]
+    - [5127, 909]
+    - [5175, 910]
+    - [5236, 913]
+    - [5314, 917]
+    - [5436, 928]
+    - [5779, 947]
+    - [6150, 969]
+    - [6396, 983]
+    - [6591, 998]
+    - [6710, 1006]
+    - [6825, 1013]
+    - [6922, 1019]
+    - [6998, 1023]
+    - [7073, 1029]
+    - [7125, 1032]
+    - [7150, 1034]
+    - [7188, 1037]
+    - [7247, 1046]
+    - [7329, 1058]
+    - [7385, 1066]
+    - [7466, 1065]
+    - [7371, 1052]
+    - [7297, 1041]
+    - [7302, 1040]
+    - [7330, 1042]
+    - [7478, 1052]
+    - [7583, 1058]
+    - [7630, 1064]
     - [7674, 1068]
-    - [7709, 1072]
-    - [7748, 1077]
-    - [7785, 1083]
+    - [7709, 1073]
+    - [7746, 1076]
+    - [7787, 1081]
     - [7809, 1077]
     - [7727, 1066]
-    - [7658, 1057]
+    - [7656, 1058]
     - [7582, 1049]
     - [7470, 1040]
     - [7354, 1032]
@@ -107,12 +107,13 @@ roi:
     - [1084, 863]
     - [975, 870]
     - [945, 872]
-    - [871, 877]
-    - [872, 903]
-    - [908, 901]
-    - [1065, 892]
+    - [870, 881]
+    - [872, 894]
+    - [944, 892]
+    - [1074, 888]
 
   mask_frame: false          # if true, zero-out pixels outside ROI before detection
+  drift_every_sec: 60        # move ROI with camera drift, measured every N sec; 0 = static camera
 
 # Multi-object tracking (any tracker in air_track/tracking/<name>.py)
 tracking:
@@ -129,7 +130,7 @@ tracking:
 rot:
   ref_point: "bottom"          # box point tested against the ROI: "bottom" or "center"
   air_height_ratio: 2.0        # airspace above the ROI counted as "over the runway", in aircraft box heights
-  min_run_frames: 3            # zone must hold this many sampled frames to count
+  min_segment_frames: 5        # zone must hold this many sampled frames to count
   max_off_gap_sec: 2.0         # OFF gaps this short inside a track do not split an episode
   min_track_frames: 32         # shorter tracks are dropped
   min_displacement_px: 100     # tracks that move less are dropped (parked aircraft)
@@ -139,9 +140,9 @@ outputs:
   output_dir: "./data/rot/outputs/"
   save_csv: true             # episodes.csv
   save_plot: true            # occupancy.png
-  save_img: true
+  save_img: false
   hide_conf: false
-  generate_video: true
+  generate_video: false
 
 # Evaluation
 evaluation:

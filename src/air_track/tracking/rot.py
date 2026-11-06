@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Dict, List, NamedTuple
+from typing import Dict, List, NamedTuple, Sequence
 
 import numpy as np
 
@@ -32,54 +32,54 @@ class Episode:
         return self.end_sec - self.start_sec
 
 
-class _Run(NamedTuple):
+class _Segment(NamedTuple):
     zone: Zone
     first: int  # observation index
     last: int
 
 
-def _runs(zones: List[Zone], min_len: int) -> List[_Run]:
-    """Group equal consecutive zones, drop runs shorter than min_len, re-merge."""
-    raw: List[_Run] = []
+def _zone_segments(zones: List[Zone], min_len: int) -> List[_Segment]:
+    """Group equal consecutive zones, drop segments shorter than min_len, re-merge."""
+    raw: List[_Segment] = []
     for i, z in enumerate(zones):
         if raw and raw[-1].zone == z:
             raw[-1] = raw[-1]._replace(last=i)
         else:
-            raw.append(_Run(z, i, i))
+            raw.append(_Segment(z, i, i))
 
-    runs: List[_Run] = []
-    for r in raw:
-        if r.last - r.first + 1 < min_len:
+    segments: List[_Segment] = []
+    for s in raw:
+        if s.last - s.first + 1 < min_len:
             continue
-        if runs and runs[-1].zone == r.zone:
-            runs[-1] = runs[-1]._replace(last=r.last)
+        if segments and segments[-1].zone == s.zone:
+            segments[-1] = segments[-1]._replace(last=s.last)
         else:
-            runs.append(r)
-    return runs
+            segments.append(s)
+    return segments
 
 
 def _bridge_off_gaps(
     zones: List[Zone],
-    runs: List[_Run],
+    segments: List[_Segment],
     obs_times: np.ndarray,
     max_gap_sec: float,
 ) -> List[Zone]:
-    """Relabel short OFF gaps between runway runs with the zone before them."""
+    """Relabel short OFF gaps between runway segments with the zone before them."""
     zones = list(zones)
-    for prev, run, nxt in zip(runs, runs[1:], runs[2:]):
+    for prev, seg, nxt in zip(segments, segments[1:], segments[2:]):
         gap_sec = obs_times[nxt.first] - obs_times[prev.last]
-        if run.zone == Zone.OFF and gap_sec <= max_gap_sec:
+        if seg.zone == Zone.OFF and gap_sec <= max_gap_sec:
             for i in range(prev.last + 1, nxt.first):
                 zones[i] = prev.zone
     return zones
 
 
-def _runway_chunks(runs: List[_Run]) -> List[List[_Run]]:
-    """Split runs at OFF; keep chunks where the aircraft touched the runway."""
+def _runway_chunks(segments: List[_Segment]) -> List[List[_Segment]]:
+    """Split zone segments at OFF; keep chunks where the aircraft touched the runway."""
     chunks, cur = [], []
-    for r in runs + [_Run(Zone.OFF, -1, -1)]:
-        if r.zone != Zone.OFF:
-            cur.append(r)
+    for s in segments + [_Segment(Zone.OFF, -1, -1)]:
+        if s.zone != Zone.OFF:
+            cur.append(s)
             continue
         if any(c.zone == Zone.GROUND for c in cur):
             chunks.append(cur)
@@ -98,15 +98,17 @@ def _is_moving(track: Track, min_frames: int, min_disp_px: float) -> bool:
 def extract_episodes(
     tracks: Dict[int, Track],
     times_sec: np.ndarray,
-    roi_poly: Polygon,
+    rois: Sequence[Polygon],
     params,
 ) -> List[Episode]:
     """Turn tracks into runway-occupancy episodes.
 
+    rois holds the runway polygon for each sampled frame (it follows camera drift).
+
     Within each AIR/GROUND chunk of a track:
       start = first frame of the chunk (threshold crossing if airborne,
               runway entry if on the ground)
-      end   = first frame of the final AIR run (liftoff) if it ends airborne,
+      end   = first frame of the final AIR segment (liftoff) if it ends airborne,
               otherwise last GROUND frame (runway exit)
     """
     episodes: List[Episode] = []
@@ -118,18 +120,19 @@ def extract_episodes(
 
         # Air zone scales with the aircraft's own box height (perspective)
         zones = [
-            zone_of(ref_point(box, params.ref_point), roi_poly,
+            zone_of(ref_point(box, params.ref_point), rois[frame],
                     params.air_height_ratio * (box[3] - box[1]))
-            for _, box in track
+            for frame, box in track
         ]
         obs_times = times_sec[[frame for frame, _ in track]]
-        zones = _bridge_off_gaps(
-            zones,
-            _runs(zones, params.min_run_frames),
-            obs_times,
-            params.max_off_gap_sec,
-        )
-        for chunk in _runway_chunks(_runs(zones, params.min_run_frames)):
+        # Disabled for now, to see the effect of bridging short OFF gaps
+        # zones = _bridge_off_gaps(
+        #     zones,
+        #     _zone_segments(zones, params.min_segment_frames),
+        #     obs_times,
+        #     params.max_off_gap_sec,
+        # )
+        for chunk in _runway_chunks(_zone_segments(zones, params.min_segment_frames)):
             first, last = chunk[0], chunk[-1]
             starts_air = first.zone == Zone.AIR
             ends_air = last.zone == Zone.AIR
